@@ -38,8 +38,7 @@ function fmtDate(ts){try{return new Intl.DateTimeFormat('pl-PL',{dateStyle:'shor
 function cloneState(){return JSON.parse(JSON.stringify(state))}
 
 function applyTheme(){
-  const r=document.documentElement,p=state.palette;
-  r.style.setProperty('--ink',p.ink);r.style.setProperty('--body',p.body);r.style.setProperty('--bg',p.bg);r.style.setProperty('--important',p.important);r.style.setProperty('--warning',p.warning);r.style.setProperty('--remember',p.remember);r.style.setProperty('--additional',p.additional);
+  const p=state.palette;
   const map={cInk:'ink',cBody:'body',cBg:'bg',cImportant:'important',cWarning:'warning',cRemember:'remember',cAdditional:'additional'};
   Object.entries(map).forEach(([id,k])=>{const el=$(id);if(el){el.value=p[k];el.disabled=state.preset==='doctor'}});
   $('doctorPreset').className=state.preset==='doctor'?'primary':'secondary';
@@ -75,7 +74,7 @@ function renderPreview(){
   const sc=scaleForPreview();
   $('canvas').innerHTML=state.screens.map((p,i)=>{
     const stage='width:'+(state.w*sc)+'px;height:'+(state.h*sc)+'px';
-    const pageStyle='width:'+state.w+'px;height:'+state.h+'px;transform:scale('+sc+');background:'+state.palette.bg+';';
+    const pageStyle='width:'+state.w+'px;height:'+state.h+'px;transform:scale('+sc+');background:'+state.palette.bg+';--ink:'+state.palette.ink+';--body:'+state.palette.body+';--important:'+state.palette.important+';--warning:'+state.palette.warning+';--remember:'+state.palette.remember+';--additional:'+state.palette.additional+';';
     const baseBg=p.pdfBackground||state.template||'';
     const bg=baseBg?'<div class="page-bg" style="background-image:url(\''+baseBg+'\')"></div>':'';
     if(p.type==='cover')return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page cover '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" style="'+pageStyle+'">'+bg+'<div class="page-inner"><div class="material-logo">'+(state.materialLogo?'<img src="'+state.materialLogo+'" alt="logo">':'<span class="muted">Dodaj logo</span>')+'</div><div class="cover-title">'+esc(p.heading||'')+'</div></div></section></div></div>';
