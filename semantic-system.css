@@ -98,3 +98,18 @@
 .page [contenteditable="true"]:hover{background-color:rgba(255,255,255,.42);box-shadow:0 0 0 1px rgba(63,80,110,.16);border-radius:5px}
 .page [contenteditable="true"]:focus{outline:none;background-color:rgba(255,255,255,.72);box-shadow:0 0 0 1.5px rgba(63,80,110,.34);border-radius:5px}
 .page .box [contenteditable="true"]:hover,.page .box [contenteditable="true"]:focus{background-color:rgba(255,255,255,.28)}
+
+
+/* Helper copy sizing v1: only descriptive/helper text in the editor UI. */
+.sidebar .status,
+.sidebar .muted,
+.sidebar .reorder-help,
+.sidebar .semantic-helper,
+.sidebar .semantic-system-intro,
+.sidebar .semantic-system-rule,
+.sidebar .brand-note,
+.sidebar .folder-status,
+.sidebar .palette-item small{
+  font-size:9px!important;
+  line-height:1.35!important;
+}
