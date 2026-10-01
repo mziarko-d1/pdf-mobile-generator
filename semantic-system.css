@@ -331,3 +331,34 @@
 .import-suggestion-actions button{
   white-space:nowrap;
 }
+
+
+/* Imported article spacing v2: fixed rhythm for URL/PDF generated materials. */
+.page.imported-content[data-format="mobile"]:not(.cover):not(.hide-page-title) .page-inner{
+  padding-top:40px!important;
+}
+.page.imported-content[data-format="mobile"]:not(.cover):not(.hide-page-title) .page-title{
+  margin:0 0 40px!important;
+  text-align:center!important;
+}
+.page.imported-content[data-format="mobile"] .page-intro:empty{
+  display:none!important;
+}
+.page.imported-content[data-format="mobile"].hide-page-title .page-inner{
+  padding-top:32px!important;
+}
+.page.imported-content[data-format="mobile"] .topic-list{
+  gap:32px!important;
+}
+.page.imported-content[data-format="mobile"] .topic-body p{
+  margin:0!important;
+}
+.page.imported-content[data-format="mobile"] .topic-body p + p{
+  margin-top:32px!important;
+}
+.import-type-helper{
+  margin-top:5px;
+  font-size:8px;
+  line-height:1.35;
+  color:#77819A;
+}
