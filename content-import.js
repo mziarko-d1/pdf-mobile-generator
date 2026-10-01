@@ -97,6 +97,7 @@
       semanticStyle:role,
       semanticAuto:true,
       hidePageTitle:!!continued,
+      importedContent:true,
       importGroup:groupKey||uid('group'),
       importBaseTitle:title||'Treść'
     };
@@ -298,7 +299,7 @@
       return out;
     }
 
-    const chunks=splitParagraph(block.body,900);
+    const chunks=splitParagraph(block.body,780);
     if(chunks.length<=1) return [block];
     const out=chunks.map(function(body,index){
       return makeTextBlock(block.type,index===0?block.title:'',body);
@@ -339,13 +340,31 @@
     return inner.scrollHeight<=inner.clientHeight+4;
   }
 
+  function pageTextLoad(screen){
+    return (screen.blocks||[]).reduce(function(total,block){
+      if(!block) return total;
+      if(block.type==='image') return total+260;
+      return total+
+        String(block.title||'').length*1.4+
+        String(block.body||'').length;
+    },0);
+  }
+
+  function pageComfortable(screen){
+    if(!pageFits(screen)) return false;
+    const continuation=!!screen.hidePageTitle;
+    const maxText=continuation?1250:1100;
+    const maxBlocks=continuation?6:5;
+    return pageTextLoad(screen)<=maxText && (screen.blocks||[]).length<=maxBlocks;
+  }
+
   async function renderAndMeasure(screen){
     render();
     await nextFrame();
     const page=document.querySelector('[data-select-page="'+screen.id+'"]');
     await waitForPageImages(page);
     await nextFrame();
-    return pageFits(screen);
+    return pageComfortable(screen);
   }
 
   async function buildScreensToFit(parsed,role){
@@ -572,7 +591,7 @@
         return total+(screen.blocks||[]).filter(function(block){return !!block.suggestedBox;}).length;
       },0);
       const suggestionText=suggestionCount?' Sugestie wyróżnień: '+suggestionCount+'.':'';
-      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Bez powtarzania tytułu na kontynuacjach.'+suggestionText,'ok');
+      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Strony są wypełniane do komfortowej gęstości; typ każdego bloku możesz potem zmienić.'+suggestionText,'ok');
 
       const workspace=document.querySelector('.workspace');
       if(workspace) workspace.scrollTo({top:0,behavior:'smooth'});
