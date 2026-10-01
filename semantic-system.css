@@ -385,3 +385,13 @@
   opacity:1;
   transform:translate(-50%,0);
 }
+
+
+/* Bold text keeps the normal copy color; semantic color is reserved for structural accents. */
+.page .topic-body strong,
+.page .topic-body b,
+.topic.semantic-auto .topic-body strong,
+.topic.semantic-auto .topic-body b{
+  color:var(--body)!important;
+  font-weight:700;
+}
