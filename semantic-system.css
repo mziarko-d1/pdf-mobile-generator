@@ -187,3 +187,75 @@
   opacity:.55;
   cursor:not-allowed;
 }
+
+
+/* Compact sidebar controls v2: labels, selects, text fields and buttons only. */
+.sidebar .card{
+  padding:14px!important;
+  margin-bottom:12px!important;
+  border-radius:15px!important;
+}
+.sidebar .card h2{
+  font-size:12px!important;
+  line-height:1.2!important;
+  margin-bottom:10px!important;
+}
+.sidebar .card > label,
+.sidebar .saved-row + label,
+.sidebar .colors label{
+  font-size:10px!important;
+  line-height:1.2!important;
+  margin-top:8px!important;
+  margin-bottom:5px!important;
+}
+.sidebar .card input[type="text"],
+.sidebar .card input[type="number"],
+.sidebar .card input[type="url"],
+.sidebar .card input:not([type]),
+.sidebar .card select,
+.sidebar .card textarea{
+  font-size:11px!important;
+  line-height:1.25!important;
+  padding:7px 9px!important;
+  border-radius:9px!important;
+}
+.sidebar .card select{
+  min-height:34px!important;
+}
+.sidebar .card textarea{
+  min-height:56px!important;
+}
+.sidebar .card button{
+  font-size:10px!important;
+  line-height:1.1!important;
+  padding:8px 11px!important;
+}
+.sidebar .card .mini{
+  padding:6px 8px!important;
+}
+.sidebar .actions{
+  gap:7px!important;
+  margin-top:7px!important;
+}
+.sidebar .saved-row{
+  gap:6px!important;
+}
+#contentImportCard{
+  border:1px solid #E5E8F0;
+}
+#contentImportCard .import-or{
+  text-align:center;
+  font-size:8px;
+  color:#77819A;
+  margin:5px 0 1px;
+}
+#contentImportCard .import-note{
+  font-size:9px;
+  line-height:1.35;
+  color:#77819A;
+  margin:7px 0 0;
+}
+#contentImportCard button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
