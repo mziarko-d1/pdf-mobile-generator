@@ -109,6 +109,7 @@
       if(screen.type!=='content') return;
       const slideRole=semanticNormalizeStyle(screen.semanticStyle)==='mixed'?'neutral':semanticNormalizeStyle(screen.semanticStyle);
       page.dataset.semantic=slideRole;
+      page.classList.toggle('hide-page-title',!!screen.hidePageTitle);
       page.classList.toggle('semantic-page-auto',screen.semanticAuto!==false && slideRole!=='neutral');
       semanticApplyVars(page,slideRole);
       (screen.blocks||[]).forEach((block)=>{
@@ -277,4 +278,70 @@
   });
 
   renderPreview();
+})();
+
+
+/* Import highlight suggestions v1 */
+(function(){
+  const labels={
+    important:'Ważne',
+    warning:'Uważaj',
+    remember:'Pamiętaj'
+  };
+
+  function mountImportSuggestions(){
+    const screen=current();
+    if(!screen||screen.type!=='content') return;
+
+    const cards=[...document.querySelectorAll('#blocks .block-card')];
+    (screen.blocks||[]).forEach((block,index)=>{
+      if(!block||!block.suggestedBox||!labels[block.suggestedBox]) return;
+      if(['important','warning','remember'].includes(block.type)) return;
+
+      const card=cards[index];
+      if(!card) return;
+
+      const suggestion=document.createElement('div');
+      suggestion.className='import-box-suggestion';
+      suggestion.innerHTML=
+        '<div><strong>Sugestia wyróżnienia: '+labels[block.suggestedBox]+'</strong>'+
+        '<span>Treść wygląda na fragment, który warto wizualnie wyróżnić.</span></div>'+
+        '<div class="import-suggestion-actions">'+
+        '<button type="button" class="mini secondary" data-apply-suggestion="'+block.id+'">Zastosuj</button>'+
+        '<button type="button" class="mini ghost" data-dismiss-suggestion="'+block.id+'">Pomiń</button>'+
+        '</div>';
+
+      card.appendChild(suggestion);
+    });
+
+    document.querySelectorAll('[data-apply-suggestion]').forEach(btn=>{
+      btn.onclick=()=>{
+        const block=(screen.blocks||[]).find(b=>b.id===btn.dataset.applySuggestion);
+        if(!block||!block.suggestedBox) return;
+        const type=block.suggestedBox;
+        if(!block.title) block.title=labels[type]||'Ważne';
+        block.type=type;
+        delete block.suggestedBox;
+        renderEditor();
+        renderPreview();
+      };
+    });
+
+    document.querySelectorAll('[data-dismiss-suggestion]').forEach(btn=>{
+      btn.onclick=()=>{
+        const block=(screen.blocks||[]).find(b=>b.id===btn.dataset.dismissSuggestion);
+        if(!block) return;
+        delete block.suggestedBox;
+        renderEditor();
+      };
+    });
+  }
+
+  const suggestionBaseRenderEditor=renderEditor;
+  renderEditor=function(){
+    suggestionBaseRenderEditor();
+    mountImportSuggestions();
+  };
+
+  renderEditor();
 })();
