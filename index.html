@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260930-2">
+  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261001-1">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -69,6 +69,17 @@
       <button id="removeTemplate" class="ghost full">Usuń tło</button>
     </section>
 
+    <section class="card semantic-system-card">
+      <h2>System wizualny · role kolorystyczne</h2>
+      <p class="semantic-system-intro">Kolor opisuje warstwę narracyjną treści, nie dekorację.</p>
+      <div class="semantic-legend">
+        <div class="semantic-legend-row"><span class="semantic-dot product"></span><div><strong>Product / Doctor.One · #3F506E</strong><small>system, produkt, wdrożenie, platforma, product-led flow</small></div></div>
+        <div class="semantic-legend-row"><span class="semantic-dot patient"></span><div><strong>Patient · #F2CFBD</strong><small>patient experience, journey, risk, patient-side outcome · ikony #D9A081</small></div></div>
+        <div class="semantic-legend-row"><span class="semantic-dot hcp"></span><div><strong>HCP / Clinical · #ACB8E9</strong><small>clinical context, care team, therapy pathway, medical process · ikony #9099CF</small></div></div>
+      </div>
+      <div class="semantic-system-rule">Neutral / white pozostaje domyślne dla treści wspólnych. Mixed-role slajdy mogą łączyć role lokalnie na blokach. Nie dodajemy nowych kolorów semantycznych tylko dla różnorodności wizualnej.</div>
+    </section>
+
     <section class="card" id="colorsCard">
       <h2>Kolory materiału</h2>
       <div class="colors">
@@ -120,6 +131,6 @@
     <div id="canvas" class="canvas"></div>
   </main>
 </div>
-<script src="app.js?v=20260930-2"></script>
+<script src="app.js?v=20260930-2"></script>\n<script src="semantic-system.js?v=20261001-1"></script>
 </body>
 </html>
