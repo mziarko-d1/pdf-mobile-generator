@@ -362,3 +362,26 @@
   line-height:1.35;
   color:#77819A;
 }
+
+
+/* Undo toast v1 */
+.undo-toast{
+  position:fixed;
+  left:50%;
+  bottom:22px;
+  transform:translate(-50%,12px);
+  z-index:9999;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#1D1E3C;
+  color:#fff;
+  font:600 10px/1.2 'Libre Franklin',Arial,sans-serif;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease,transform .15s ease;
+  box-shadow:0 10px 30px rgba(29,30,60,.18);
+}
+.undo-toast.show{
+  opacity:1;
+  transform:translate(-50%,0);
+}
