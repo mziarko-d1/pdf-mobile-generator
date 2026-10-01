@@ -35,6 +35,18 @@
       .replace(/[ \t]+/g,' ')
       .trim();
   }
+  function suggestBoxFor(title,body,type){
+    if(type==='image') return '';
+    const head=String(title||'').toLocaleLowerCase('pl-PL');
+    const copy=String(body||'').slice(0,320).toLocaleLowerCase('pl-PL');
+    const sample=(head+' '+copy).trim();
+
+    if(/\b(uwaga|ostrzeż|ryzyko|zagroż|przeciwwskaz|alarm|piln|natychmiast)\w*/i.test(sample)) return 'warning';
+    if(/\b(pamiętaj|zapamiętaj|warto pamiętać|zwróć uwagę|zwrócić uwagę)\b/i.test(sample)) return 'remember';
+    if(/\b(najważniejsz|kluczow|istotn|ważn)\w*|co warto sprawdzić|warto sprawdzić/i.test(sample)) return 'important';
+    return '';
+  }
+
   function isDateMeta(line){
     return /^(publikacja|aktualizacja|published|updated)\s*:/i.test(String(line||'').trim());
   }
@@ -61,6 +73,8 @@
     b.title=title||'';
     b.body=body||'';
     b.semanticRole='inherit';
+    const suggestion=suggestBoxFor(b.title,b.body,b.type);
+    if(suggestion) b.suggestedBox=suggestion;
     return b;
   }
   function makeImageBlock(image){
@@ -77,11 +91,12 @@
     return {
       id:uid('p'),
       type:'content',
-      title:(title||'Treść')+(continued?' · cd.':''),
+      title:title||'Treść',
       intro:'',
       blocks:blocks||[],
       semanticStyle:role,
       semanticAuto:true,
+      hidePageTitle:!!continued,
       importGroup:groupKey||uid('group'),
       importBaseTitle:title||'Treść'
     };
@@ -119,7 +134,8 @@
       current=null;
     }
     function startSection(heading,kind){
-      current={heading:cleanInline(heading)||'Treść',kind:kind||'section',blocks:[]};
+      const cleanHeading=cleanInline(heading)||'Treść';
+      current={heading:cleanHeading,kind:kind||'section',blocks:[],suggestedBox:suggestBoxFor(cleanHeading,'','paragraph')};
       pendingTitle='';
       paragraph=[];
     }
@@ -277,14 +293,19 @@
       for(let i=0;i<items.length;i+=7){
         out.push(makeTextBlock(block.type,i===0?block.title:'',items.slice(i,i+7).join('\n')));
       }
+      if(block.suggestedBox&&out[0]) out[0].suggestedBox=block.suggestedBox;
+      for(let i=1;i<out.length;i++) delete out[i].suggestedBox;
       return out;
     }
 
     const chunks=splitParagraph(block.body,900);
     if(chunks.length<=1) return [block];
-    return chunks.map(function(body,index){
+    const out=chunks.map(function(body,index){
       return makeTextBlock(block.type,index===0?block.title:'',body);
     });
+    if(block.suggestedBox&&out[0]) out[0].suggestedBox=block.suggestedBox;
+    for(let i=1;i<out.length;i++) delete out[i].suggestedBox;
+    return out;
   }
 
   function nextFrame(){
@@ -345,6 +366,11 @@
       });
       if(!pieces.length) continue;
 
+      if(group.suggestedBox){
+        const firstEligible=pieces.find(function(piece){return piece&&piece.type!=='image';});
+        if(firstEligible&&!firstEligible.suggestedBox) firstEligible.suggestedBox=group.suggestedBox;
+      }
+
       let current=makeScreen(group.heading,[],role,groupKey,false);
       screens.push(current);
       state.screens=screens;
@@ -364,8 +390,7 @@
           continue;
         }
 
-        const continued=screens.some(function(s){return s.importGroup===groupKey&&s!==current;});
-        current=makeScreen(group.heading,[piece],role,groupKey,true||continued);
+        current=makeScreen(group.heading,[piece],role,groupKey,true);
         screens.push(current);
         state.screens=screens;
         state.selected=current.id;
@@ -543,7 +568,11 @@
 
       document.getElementById('projectName').value=state.name;
       const contentScreens=state.screens.filter(function(s){return s.type!=='cover';}).length;
-      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Importuję tylko artykuł, źródła i kod końcowy.','ok');
+      const suggestionCount=state.screens.reduce(function(total,screen){
+        return total+(screen.blocks||[]).filter(function(block){return !!block.suggestedBox;}).length;
+      },0);
+      const suggestionText=suggestionCount?' Sugestie wyróżnień: '+suggestionCount+'.':'';
+      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Bez powtarzania tytułu na kontynuacjach.'+suggestionText,'ok');
 
       const workspace=document.querySelector('.workspace');
       if(workspace) workspace.scrollTo({top:0,behavior:'smooth'});
