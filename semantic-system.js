@@ -104,7 +104,9 @@
     if(!state || !Array.isArray(state.screens)) return;
     state.screens.forEach((screen)=>{
       const page=document.querySelector('[data-select-page="'+screen.id+'"]');
-      if(!page || screen.type!=='content') return;
+      if(!page) return;
+      page.dataset.format=state.format||'mobile';
+      if(screen.type!=='content') return;
       const slideRole=semanticNormalizeStyle(screen.semanticStyle)==='mixed'?'neutral':semanticNormalizeStyle(screen.semanticStyle);
       page.dataset.semantic=slideRole;
       page.classList.toggle('semantic-page-auto',screen.semanticAuto!==false && slideRole!=='neutral');
