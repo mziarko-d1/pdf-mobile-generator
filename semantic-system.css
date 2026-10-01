@@ -91,3 +91,10 @@
     padding-bottom:48px;
   }
 }
+
+
+/* Inline editing affordance */
+.page [contenteditable="true"]{cursor:text;transition:background-color .12s ease,box-shadow .12s ease}
+.page [contenteditable="true"]:hover{background-color:rgba(255,255,255,.42);box-shadow:0 0 0 1px rgba(63,80,110,.16);border-radius:5px}
+.page [contenteditable="true"]:focus{outline:none;background-color:rgba(255,255,255,.72);box-shadow:0 0 0 1.5px rgba(63,80,110,.34);border-radius:5px}
+.page .box [contenteditable="true"]:hover,.page .box [contenteditable="true"]:focus{background-color:rgba(255,255,255,.28)}
