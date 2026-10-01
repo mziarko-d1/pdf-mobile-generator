@@ -109,6 +109,7 @@
       if(screen.type!=='content') return;
       const slideRole=semanticNormalizeStyle(screen.semanticStyle)==='mixed'?'neutral':semanticNormalizeStyle(screen.semanticStyle);
       page.dataset.semantic=slideRole;
+      page.classList.toggle('imported-content',!!screen.importedContent||!!screen.importGroup);
       page.classList.toggle('hide-page-title',!!screen.hidePageTitle);
       page.classList.toggle('semantic-page-auto',screen.semanticAuto!==false && slideRole!=='neutral');
       semanticApplyVars(page,slideRole);
@@ -294,6 +295,25 @@
     if(!screen||screen.type!=='content') return;
 
     const cards=[...document.querySelectorAll('#blocks .block-card')];
+
+    /* Imported block type helper v1 */
+    if(screen.importedContent||screen.importGroup){
+      (screen.blocks||[]).forEach((block,index)=>{
+        if(!block||block.type==='image'||block.type==='imageText') return;
+        const card=cards[index];
+        if(!card) return;
+        const typeSelect=card.querySelector('[data-b="'+block.id+'"][data-k="type"]');
+        if(!typeSelect) return;
+        const label=typeSelect.previousElementSibling;
+        if(label&&label.tagName==='LABEL') label.textContent='Typ / wygląd bloku';
+        if(!card.querySelector('.import-type-helper')){
+          const helper=document.createElement('div');
+          helper.className='import-type-helper';
+          helper.textContent='Po imporcie możesz zmienić akapit np. na Ważne, Uważaj, Pamiętaj albo biały box.';
+          typeSelect.insertAdjacentElement('afterend',helper);
+        }
+      });
+    }
     (screen.blocks||[]).forEach((block,index)=>{
       if(!block||!block.suggestedBox||!labels[block.suggestedBox]) return;
       if(['important','warning','remember'].includes(block.type)) return;
