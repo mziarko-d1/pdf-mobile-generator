@@ -36,25 +36,25 @@
       .trim();
   }
   function isDateMeta(line){
-    return /^(publikacja|aktualizacja|published|updated)\s*:/i.test(line.trim());
-  }
-  function isNoiseLine(line){
-    const t=line.trim();
-    return !t || /^(spis treści|table of contents|tab\d*|sugerowane)$/i.test(t);
-  }
-  function isNoiseHeading(title){
-    return /^(chcesz zrobić kolejny krok\??|mogą cię zainteresować|może cię zainteresować|powiązane artykuły|related articles|kontakt|o autorze)$/i.test(title.trim());
+    return /^(publikacja|aktualizacja|published|updated)\s*:/i.test(String(line||'').trim());
   }
   function isReferenceHeading(title){
-    return /^(źródła|zrodla|references|bibliografia)$/i.test(title.trim());
+    return /^(źródła|zrodla|references|bibliografia)$/i.test(String(title||'').trim());
+  }
+  function isStopHeading(title){
+    return /^(chcesz zrobić kolejny krok\??|mogą cię zainteresować|może cię zainteresować|powiązane artykuły|related articles|kontakt|o autorze)$/i.test(String(title||'').trim());
   }
   function isMaterialCode(text){
-    return /^[A-Z]{2}\d{2}[A-Z]{2}\d{4,}$/.test(text.trim());
+    return /^[A-Z]{2}\d{2}[A-Z]{2}\d{4,}$/.test(String(text||'').trim());
+  }
+  function isNoise(text){
+    return /^(spis treści|table of contents|tab\d*|sugerowane)$/i.test(String(text||'').trim());
   }
   function imageFromLine(line){
     const m=String(line||'').match(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)(?:\s+"[^"]*")?\)/);
     return m?{alt:cleanInline(m[1])||'Obrazek',src:m[2]}:null;
   }
+
   function makeTextBlock(type,title,body){
     const b=newBlock(type||'paragraph');
     b.type=type||'paragraph';
@@ -66,6 +66,19 @@
   function makeImageBlock(image){
     return {id:uid('b'),type:'image',src:image.src,alt:image.alt||'Obrazek',width:100,semanticRole:'inherit'};
   }
+  function makeScreen(title,blocks,role,groupKey,continued){
+    return {
+      id:uid('p'),
+      type:'content',
+      title:(title||'Treść')+(continued?' · cd.':''),
+      intro:'',
+      blocks:blocks||[],
+      semanticStyle:role,
+      semanticAuto:true,
+      importGroup:groupKey||uid('group'),
+      importBaseTitle:title||'Treść'
+    };
+  }
 
   function parseReaderMarkdown(raw){
     let text=String(raw||'').replace(/\r/g,'');
@@ -74,80 +87,94 @@
     const lines=text.split('\n');
 
     let title='';
-    let introBlocks=[];
-    let sections=[];
-    let current=null;
-    let pendingTitle='';
-    let para=[];
+    const groups=[];
+    let current={heading:'Wprowadzenie',kind:'intro',blocks:[]};
+    let sectionHeading='';
     let sourceMode=false;
     let finalCode='';
+    let paragraph=[];
+    let pendingTitle='';
 
-    function targetBlocks(){
-      if(current) return current.blocks;
-      return introBlocks;
-    }
-    function flushPara(){
-      const body=cleanInline(para.join(' '));
-      para=[];
+    function flushParagraph(){
+      const body=cleanInline(paragraph.join(' '));
+      paragraph=[];
       if(!body) return;
-      targetBlocks().push(makeTextBlock('paragraph',pendingTitle,body));
+      current.blocks.push(makeTextBlock('paragraph',pendingTitle,body));
       pendingTitle='';
+    }
+    function pushCurrent(){
+      flushParagraph();
+      if(current && current.blocks.length) groups.push(current);
+    }
+    function startGroup(heading,kind){
+      current={
+        heading:cleanInline(heading)||'Treść',
+        kind:kind||'content',
+        blocks:[]
+      };
+      pendingTitle='';
+      paragraph=[];
     }
     function pushList(type,items){
-      if(!items.length) return;
-      targetBlocks().push(makeTextBlock(type,pendingTitle,items.map(cleanInline).filter(Boolean).join('\n')));
+      flushParagraph();
+      const body=items.map(cleanInline).filter(Boolean).join('\n');
+      if(body) current.blocks.push(makeTextBlock(type,pendingTitle,body));
       pendingTitle='';
-    }
-    function startSection(sectionTitle){
-      flushPara();
-      if(current) sections.push(current);
-      current={title:cleanInline(sectionTitle)||'Treść',blocks:[]};
     }
 
     for(let i=0;i<lines.length;i++){
       const rawLine=lines[i];
       const trimmed=rawLine.trim();
+
       if(/^(Title|URL Source|Published Time|Markdown Content):/i.test(trimmed)) continue;
-      if(isDateMeta(trimmed)||isNoiseLine(trimmed)) continue;
+      if(isDateMeta(trimmed)||isNoise(trimmed)) continue;
+
+      if(!trimmed){
+        flushParagraph();
+        continue;
+      }
 
       const h1=trimmed.match(/^#\s+(.+)$/);
       if(h1){
-        flushPara();
+        flushParagraph();
         if(!title) title=cleanInline(h1[1]);
         continue;
       }
+
       const h2=trimmed.match(/^##\s+(.+)$/);
       if(h2){
         const heading=cleanInline(h2[1]);
-        if(sourceMode && !isReferenceHeading(heading)) break;
-        if(isNoiseHeading(heading)) break;
+        if(isStopHeading(heading)) break;
+        pushCurrent();
+        sectionHeading=heading;
         sourceMode=isReferenceHeading(heading);
-        startSection(heading);
+        startGroup(heading,sourceMode?'sources':'section');
         continue;
       }
+
       const h3=trimmed.match(/^###\s+(.+)$/);
       if(h3){
-        flushPara();
-        pendingTitle=cleanInline(h3[1]);
+        const heading=cleanInline(h3[1]);
+        pushCurrent();
+        startGroup(heading,sourceMode?'sources':'subsection');
         continue;
       }
 
       if(sourceMode && isMaterialCode(trimmed)){
-        flushPara();
+        flushParagraph();
         finalCode=trimmed;
         continue;
       }
 
       const image=imageFromLine(trimmed);
       if(image){
-        flushPara();
-        targetBlocks().push(makeImageBlock(image));
+        flushParagraph();
+        current.blocks.push(makeImageBlock(image));
         continue;
       }
 
       const bullet=trimmed.match(/^[-*+]\s+(.+)$/);
       if(bullet){
-        flushPara();
         const items=[bullet[1]];
         while(i+1<lines.length){
           const n=lines[i+1].trim().match(/^[-*+]\s+(.+)$/);
@@ -160,7 +187,6 @@
 
       const numbered=trimmed.match(/^\d+[.)]\s+(.+)$/);
       if(numbered){
-        flushPara();
         const items=[numbered[1]];
         while(i+1<lines.length){
           const n=lines[i+1].trim().match(/^\d+[.)]\s+(.+)$/);
@@ -171,11 +197,10 @@
         continue;
       }
 
-      if(trimmed) para.push(trimmed);
-      else flushPara();
+      paragraph.push(trimmed);
     }
-    flushPara();
-    if(current) sections.push(current);
+
+    pushCurrent();
 
     if(!title){
       const meta=String(raw||'').match(/^Title:\s*(.+)$/im);
@@ -183,122 +208,194 @@
     }
     if(!title) title='Zaimportowany materiał';
 
-    return {title,introBlocks,sections,finalCode};
+    return {title:title,groups:groups,finalCode:finalCode};
   }
 
-  function splitLongText(text,maxChars){
+  function splitParagraph(text,maxChars){
     const src=String(text||'').trim();
+    if(!src) return [];
     if(src.length<=maxChars) return [src];
+
     const sentences=src.split(/(?<=[.!?])\s+/);
     const chunks=[];
     let current='';
-    for(const sentence of sentences){
+    sentences.forEach(function(sentence){
       if(sentence.length>maxChars){
-        if(current){chunks.push(current.trim());current=''}
+        if(current){chunks.push(current.trim());current='';}
         const words=sentence.split(/\s+/);
         let part='';
-        for(const word of words){
+        words.forEach(function(word){
           const next=(part?part+' ':'')+word;
-          if(next.length>maxChars&&part){chunks.push(part.trim());part=word}
+          if(next.length>maxChars&&part){chunks.push(part.trim());part=word;}
           else part=next;
-        }
+        });
         if(part) chunks.push(part.trim());
-        continue;
+        return;
       }
       const next=(current?current+' ':'')+sentence;
-      if(next.length>maxChars&&current){chunks.push(current.trim());current=sentence}
+      if(next.length>maxChars&&current){chunks.push(current.trim());current=sentence;}
       else current=next;
-    }
+    });
     if(current) chunks.push(current.trim());
     return chunks.filter(Boolean);
   }
-  function expandBlock(block){
+
+  function splitBlockForPage(block){
+    if(!block) return [];
     if(block.type==='image') return [block];
+
     if(block.type==='bullets'||block.type==='numbered'){
-      const items=String(block.body||'').split('\n').filter(Boolean);
-      const out=[];
-      let pack=[];
-      let chars=0;
-      for(const item of items){
-        if(pack.length>=6 || (chars+item.length)>650){
-          out.push(makeTextBlock(block.type,out.length?'':block.title,pack.join('\n')));
-          pack=[];chars=0;
-        }
-        pack.push(item);chars+=item.length;
+      const items=String(block.body||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+      if(items.length<=4 && String(block.body||'').length<=520) return [block];
+      const result=[];
+      for(let i=0;i<items.length;i+=4){
+        result.push(makeTextBlock(block.type,i===0?block.title:'',items.slice(i,i+4).join('\n')));
       }
-      if(pack.length) out.push(makeTextBlock(block.type,out.length?'':block.title,pack.join('\n')));
-      return out.length?out:[block];
+      return result;
     }
-    const chunks=splitLongText(block.body,680);
-    return chunks.map((body,index)=>makeTextBlock(block.type,index===0?block.title:'',body));
+
+    const chunks=splitParagraph(block.body,480);
+    if(chunks.length<=1) return [block];
+    return chunks.map(function(body,index){
+      return makeTextBlock(block.type,index===0?block.title:'',body);
+    });
   }
-  function blockWeight(block){
-    if(block.type==='image') return 360;
-    return (block.title||'').length*1.5+(block.body||'').length;
-  }
-  function makeScreen(title,blocks,role){
-    return {
-      id:uid('p'),
-      type:'content',
-      title:title||'Treść',
-      intro:'',
-      blocks,
-      semanticStyle:role,
-      semanticAuto:true
-    };
-  }
-  function packSection(title,blocks,role){
-    const expanded=blocks.flatMap(expandBlock);
-    const screens=[];
-    let pack=[];
-    let weight=0;
-    for(const block of expanded){
-      const w=blockWeight(block);
-      if(pack.length && weight+w>920){
-        screens.push(makeScreen(screens.length?title+' · cd.':title,pack,role));
-        pack=[];weight=0;
-      }
-      pack.push(block);weight+=w;
-    }
-    if(pack.length) screens.push(makeScreen(screens.length?title+' · cd.':title,pack,role));
-    if(!screens.length) screens.push(makeScreen(title,[makeTextBlock('paragraph','','')],role));
-    return screens;
-  }
-  function buildStateFromParsed(parsed,role){
+
+  function initialScreens(parsed,role){
     const cover=coverScreen();
     cover.heading=parsed.title;
 
     const screens=[cover];
-    if(parsed.introBlocks.length){
-      screens.push(...packSection('Wprowadzenie',parsed.introBlocks,role));
-    }
-    parsed.sections.forEach(section=>{
-      screens.push(...packSection(section.title,section.blocks,role));
-    });
-    if(parsed.finalCode){
-      let last=screens[screens.length-1];
-      if(!last || last.type==='cover'){
-        last=makeScreen('Źródła',[],role);
-        screens.push(last);
+
+    parsed.groups.forEach(function(group,index){
+      const key='import_'+index+'_'+Date.now();
+      const pieces=[];
+      (group.blocks||[]).forEach(function(block){
+        splitBlockForPage(block).forEach(function(piece){pieces.push(piece);});
+      });
+
+      if(!pieces.length) return;
+
+      let pack=[];
+      let chars=0;
+      pieces.forEach(function(block){
+        const blockChars=(block.title||'').length*2+(block.body||'').length+(block.type==='image'?350:0);
+        const shouldBreak=pack.length>=2 || (pack.length && chars+blockChars>620);
+        if(shouldBreak){
+          screens.push(makeScreen(group.heading,pack,role,key,screens.some(function(s){return s.importGroup===key;})));
+          pack=[];
+          chars=0;
+        }
+        pack.push(block);
+        chars+=blockChars;
+      });
+      if(pack.length){
+        screens.push(makeScreen(group.heading,pack,role,key,screens.some(function(s){return s.importGroup===key;})));
       }
+    });
+
+    if(parsed.finalCode){
+      let target=screens[screens.length-1];
       const codeBlock=makeTextBlock('paragraph','',parsed.finalCode);
-      const used=(last.blocks||[]).reduce((n,b)=>n+blockWeight(b),0);
-      if(used>760){
-        screens.push(makeScreen('Źródła · kod materiału',[codeBlock],role));
+      if(!target || target.type==='cover'){
+        target=makeScreen('Źródła',[codeBlock],role,'sources_code',false);
+        screens.push(target);
       }else{
-        last.blocks.push(codeBlock);
+        target.blocks.push(codeBlock);
       }
     }
     return screens;
   }
 
+  function splitOverflowBlock(block){
+    if(!block||block.type==='image') return null;
+
+    if(block.type==='bullets'||block.type==='numbered'){
+      const items=String(block.body||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+      if(items.length<2) return null;
+      const cut=Math.ceil(items.length/2);
+      return [
+        makeTextBlock(block.type,block.title,items.slice(0,cut).join('\n')),
+        makeTextBlock(block.type,'',items.slice(cut).join('\n'))
+      ];
+    }
+
+    const body=String(block.body||'').trim();
+    if(body.length<120) return null;
+    const chunks=splitParagraph(body,Math.max(180,Math.ceil(body.length/2)));
+    if(chunks.length<2) return null;
+    return [
+      makeTextBlock(block.type,block.title,chunks[0]),
+      makeTextBlock(block.type,'',chunks.slice(1).join(' '))
+    ];
+  }
+
+  function nextFrame(){
+    return new Promise(function(resolve){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(resolve);
+      });
+    });
+  }
+
+  async function autoFitScreens(){
+    setStatus('Rozkładam treść na strony i dopasowuję wysokość…','');
+    for(let pass=0;pass<80;pass++){
+      render();
+      await nextFrame();
+
+      let changed=false;
+      for(let i=0;i<state.screens.length;i++){
+        const screen=state.screens[i];
+        if(!screen||screen.type==='cover') continue;
+        const page=document.querySelector('[data-select-page="'+screen.id+'"]');
+        const inner=page&&page.querySelector('.page-inner');
+        if(!inner) continue;
+
+        if(inner.scrollHeight<=inner.clientHeight+4) continue;
+
+        const blocks=screen.blocks||[];
+        if(blocks.length>1){
+          const moved=blocks.pop();
+          const next=makeScreen(screen.importBaseTitle||screen.title,[moved],screen.semanticStyle,screen.importGroup,true);
+          state.screens.splice(i+1,0,next);
+          changed=true;
+          break;
+        }
+
+        if(blocks.length===1){
+          const split=splitOverflowBlock(blocks[0]);
+          if(split){
+            screen.blocks=[split[0]];
+            const next=makeScreen(screen.importBaseTitle||screen.title,[split[1]],screen.semanticStyle,screen.importGroup,true);
+            state.screens.splice(i+1,0,next);
+            changed=true;
+            break;
+          }
+        }
+      }
+      if(!changed) break;
+    }
+    render();
+    await nextFrame();
+  }
+
   function validatePublicUrl(value){
     let url;
-    try{url=new URL(value)}catch{throw new Error('Wpisz pełny adres URL zaczynający się od https:// lub http://.')}
+    try{url=new URL(value);}
+    catch(e){throw new Error('Wpisz pełny adres URL zaczynający się od https:// lub http://.');}
     if(!/^https?:$/.test(url.protocol)) throw new Error('Obsługiwane są tylko adresy http:// i https://.');
+
     const host=url.hostname.toLowerCase();
-    const privateHost=host==='localhost'||host==='127.0.0.1'||host==='0.0.0.0'||host.endsWith('.local')||
-      /^10\./.test(host)||/^192\.168\./.test(host)||/^172\.(1[6-9]|2\d|3[01])\./.test(host);
+    const privateHost=
+      host==='localhost'||
+      host==='127.0.0.1'||
+      host==='0.0.0.0'||
+      host.endsWith('.local')||
+      /^10\./.test(host)||
+      /^192\.168\./.test(host)||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+
     if(privateHost) throw new Error('Importer URL obsługuje tylko publiczne strony.');
     return url.href;
   }
@@ -313,48 +410,62 @@
     return parseReaderMarkdown(text);
   }
 
-  function cleanPdfText(text){
-    return String(text||'')
-      .replace(/\r/g,'')
-      .split('\n')
-      .map(x=>x.trim())
-      .filter(x=>x&&!isDateMeta(x))
-      .join('\n');
+  function pdfBlocks(lines){
+    const blocks=[];
+    let paragraph=[];
+    function flush(){
+      const body=paragraph.join(' ').replace(/\s+/g,' ').trim();
+      paragraph=[];
+      if(body) blocks.push(makeTextBlock('paragraph','',body));
+    }
+    lines.forEach(function(line){
+      const t=String(line||'').trim();
+      if(!t||isDateMeta(t)){flush();return;}
+      paragraph.push(t);
+    });
+    flush();
+    return blocks;
   }
-  function plainBlocks(text){
-    const paragraphs=cleanPdfText(text).split(/\n{2,}/).map(x=>x.trim()).filter(Boolean);
-    if(!paragraphs.length) return [];
-    return paragraphs.map(p=>makeTextBlock('paragraph','',p));
-  }
+
   async function readPdf(file){
     const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
-    const sections=[];
+    const groups=[];
     let firstLine='';
+
     for(let pageNo=1;pageNo<=pdf.numPages;pageNo++){
       const page=await pdf.getPage(pageNo);
       const content=await page.getTextContent();
       const lines=[];
       let line='';
-      for(const item of content.items){
+
+      content.items.forEach(function(item){
         const s=String(item.str||'').trim();
-        if(!s) continue;
+        if(!s) return;
         line+=(line?' ':'')+s;
-        if(item.hasEOL){lines.push(line);line=''}
-      }
+        if(item.hasEOL){lines.push(line);line='';}
+      });
       if(line) lines.push(line);
-      const cleaned=lines.filter(x=>!isDateMeta(x)).join('\n\n');
-      if(pageNo===1) firstLine=lines.find(x=>x&&!isDateMeta(x))||'';
-      sections.push({title:pdf.numPages>1?'Strona '+pageNo:'Treść',blocks:plainBlocks(cleaned)});
+
+      const cleanLines=lines.filter(function(x){return x&&!isDateMeta(x);});
+      if(pageNo===1) firstLine=cleanLines[0]||'';
+      const blocks=pdfBlocks(cleanLines);
+      if(blocks.length) groups.push({heading:pdf.numPages>1?'Strona '+pageNo:'Treść',kind:'pdf',blocks:blocks});
     }
+
     const fileTitle=file.name.replace(/\.pdf$/i,'').replace(/[_-]+/g,' ').trim();
-    const title=firstLine&&firstLine.length<150?firstLine:fileTitle||'Zaimportowany PDF';
-    if(sections[0]?.blocks?.[0]?.body===title) sections[0].blocks.shift();
-    return {title,introBlocks:[],sections,finalCode:''};
+    const title=(firstLine&&firstLine.length<150)?firstLine:(fileTitle||'Zaimportowany PDF');
+
+    if(groups[0]&&groups[0].blocks[0]&&groups[0].blocks[0].body===title){
+      groups[0].blocks.shift();
+    }
+
+    return {title:title,groups:groups,finalCode:''};
   }
 
   async function runImport(){
-    const file=pdfInput.files?.[0];
+    const file=pdfInput.files&&pdfInput.files[0];
     const url=urlInput.value.trim();
+
     if(!file&&!url){
       setStatus('Wklej URL artykułu albo wybierz plik PDF.','err');
       return;
@@ -366,11 +477,12 @@
     const oldText=button.textContent;
     button.disabled=true;
     button.textContent=file?'Czytam PDF…':'Pobieram artykuł…';
-    setStatus(file?'Analizuję pełną treść PDF…':'Pobieram i oczyszczam publiczny artykuł…','');
 
     try{
+      setStatus(file?'Czytam pełną treść PDF…':'Pobieram i oczyszczam artykuł…','');
       const parsed=file?await readPdf(file):await fetchArticle(url);
-      const screens=buildStateFromParsed(parsed,role);
+      const screens=initialScreens(parsed,role);
+
       if(screens.length<2) throw new Error('Nie udało się znaleźć wystarczającej treści do zbudowania materiału.');
 
       state.name=parsed.title||'Zaimportowany materiał';
@@ -382,15 +494,20 @@
       state.screens=screens;
       state.selected=screens[0].id;
 
-      render();
+      await autoFitScreens();
+
+      const contentScreens=state.screens.filter(function(s){return s.type!=='cover';}).length;
       document.getElementById('projectName').value=state.name;
-      setStatus('Gotowe: '+screens.length+' ekranów. Treść możesz dalej edytować w panelu i bezpośrednio na materiale.','ok');
-      document.querySelector('.workspace')?.scrollTo({top:0,behavior:'smooth'});
+      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Każda sekcja jest rozłożona automatycznie i nadal edytowalna.','ok');
+
+      const workspace=document.querySelector('.workspace');
+      if(workspace) workspace.scrollTo({top:0,behavior:'smooth'});
     }catch(err){
       console.error(err);
-      setStatus(err?.message||'Import nie powiódł się.','err');
+      setStatus((err&&err.message)||'Import nie powiódł się.','err');
     }finally{
       button.textContent=oldText;
+      button.disabled=false;
       syncButton();
     }
   }
