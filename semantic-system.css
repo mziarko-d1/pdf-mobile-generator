@@ -259,3 +259,22 @@
   opacity:.55;
   cursor:not-allowed;
 }
+
+
+/* Mobile cover title centered independently from the logo. */
+.page.cover[data-format="mobile"] .page-inner{
+  position:relative!important;
+  justify-content:flex-start!important;
+  align-items:center!important;
+  text-align:center!important;
+}
+.page.cover[data-format="mobile"] .cover-title{
+  position:absolute!important;
+  top:50%!important;
+  left:24px!important;
+  right:24px!important;
+  transform:translateY(-50%)!important;
+  margin:0 auto!important;
+  max-width:calc(100% - 48px)!important;
+  text-align:center!important;
+}
