@@ -17,13 +17,13 @@
     status.textContent=message||'';
   }
   function syncButton(){
-    const ready=!!urlInput.value.trim() || !!pdfInput.files?.[0];
-    button.disabled=!ready;
-    button.className=(ready?'primary':'secondary')+' full';
+    button.disabled=false;
+    button.className='primary full';
   }
   urlInput.addEventListener('input',syncButton);
   pdfInput.addEventListener('change',syncButton);
   syncButton();
+  setStatus('Importer gotowy. Wklej URL albo wybierz PDF.','ok');
 
   function cleanInline(text){
     return String(text||'')
@@ -355,7 +355,10 @@
   async function runImport(){
     const file=pdfInput.files?.[0];
     const url=urlInput.value.trim();
-    if(!file&&!url) return;
+    if(!file&&!url){
+      setStatus('Wklej URL artykułu albo wybierz plik PDF.','err');
+      return;
+    }
 
     const role=roleByTemplate[templateSelect.value]||'neutral';
     if(!confirm('Wypełnić generator zaimportowaną treścią?\n\nBieżące strony projektu zostaną zastąpione.')) return;
