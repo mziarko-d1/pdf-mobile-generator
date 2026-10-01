@@ -1,0 +1,23 @@
+.semantic-system-card{border:1px solid #E5E8F0}
+.semantic-system-intro{font-size:10px;line-height:1.45;color:#59637C;margin:0 0 10px}
+.semantic-legend{display:grid;gap:7px}
+.semantic-legend-row{display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:start;font-size:10px;line-height:1.35;color:#3F506E}
+.semantic-dot{width:12px;height:12px;border-radius:50%;margin-top:1px;border:1px solid rgba(29,30,60,.06)}
+.semantic-dot.product{background:#3F506E}.semantic-dot.patient{background:#F2CFBD}.semantic-dot.hcp{background:#ACB8E9}
+.semantic-legend-row strong{display:block;color:#1D1E3C;font-size:10px}.semantic-legend-row small{display:block;color:#77819A;margin-top:1px}
+.semantic-system-rule{margin-top:10px;padding:9px 10px;border-radius:12px;background:#F7F8FB;color:#59637C;font-size:9px;line-height:1.4}
+.semantic-screen-controls{background:#F7F8FB;border:1px solid #E5E8F0;border-radius:14px;padding:12px;margin-bottom:13px}
+.semantic-control-title{font-size:11px;font-weight:800;color:#1D1E3C;margin-bottom:7px}
+.semantic-screen-controls label,.semantic-block-control label{margin-top:7px!important}
+.semantic-auto-check{margin-top:9px!important}
+.semantic-helper{font-size:9px;line-height:1.4;color:#77819A;margin-top:7px}
+.semantic-block-control{margin:8px 0 10px;padding:8px 9px;background:#fff;border:1px solid #E5E8F0;border-radius:10px}
+.semantic-block-control label{margin:0 0 5px!important}.semantic-block-control select{width:100%}
+.page.semantic-page-auto .page-title::after{content:"";display:block;width:38px;height:4px;border-radius:999px;background:var(--semantic-main);margin-top:10px}
+.topic.semantic-auto .topic-icon{color:var(--semantic-icon)!important}
+.topic.semantic-auto .box.important,.topic.semantic-auto .box.additional{background:var(--semantic-tint)!important;border-left:4px solid var(--semantic-main)}
+.topic.semantic-auto[data-semantic="product"] .box.important{background:#EFF1F5!important}
+.topic.semantic-auto[data-semantic="patient"] .box.important,.topic.semantic-auto[data-semantic="patient"] .box.additional{background:#FBF2ED!important}
+.topic.semantic-auto[data-semantic="hcp"] .box.important,.topic.semantic-auto[data-semantic="hcp"] .box.additional{background:#F0F2FB!important}
+.topic.semantic-auto[data-semantic="product"] .topic-icon{color:#3F506E!important}.topic.semantic-auto[data-semantic="patient"] .topic-icon{color:#D9A081!important}.topic.semantic-auto[data-semantic="hcp"] .topic-icon{color:#9099CF!important}
+.sidebar .semantic-screen-controls,.sidebar .semantic-block-control,.sidebar .semantic-system-card{color:#1D1E3C!important}
