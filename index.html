@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261001-6">
+  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261001-7">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -31,6 +31,27 @@
       <label>Zapisane projekty</label>
       <div class="saved-row"><select id="savedProjects"><option value="">— wybierz —</option></select><button id="loadProject" class="ghost">Otwórz</button><button id="deleteProject" class="danger">Usuń</button></div>
       <div id="saveStatus" class="status">Projekt zapisuje się lokalnie w tej przeglądarce.</div>
+    </section>
+
+    <section class="card" id="contentImportCard">
+      <h2>Importuj treść</h2>
+      <label>URL artykułu</label>
+      <input id="articleImportUrl" type="url" placeholder="https://...">
+      <div class="import-or">lub</div>
+      <label>Plik PDF</label>
+      <input id="articleImportPdf" type="file" accept=".pdf,application/pdf">
+      <label>Szablon</label>
+      <select id="articleImportTemplate">
+        <option value="patient-article">Artykuł edukacyjny · Patient</option>
+        <option value="hcp-article">Artykuł edukacyjny · HCP / Clinical</option>
+        <option value="product-article">Artykuł edukacyjny · Product / Doctor.One</option>
+      </select>
+      <label>Treść</label>
+      <select id="articleImportMode">
+        <option value="full">Pełna treść · bez skracania</option>
+      </select>
+      <button id="fillTemplateFromContent" class="secondary full" type="button" disabled>Wypełnij szablon</button>
+      <p class="import-note">Importer URL / PDF jest przygotowany w interfejsie. Automatyczne rozkładanie treści podłączymy jako następny krok.</p>
     </section>
 
     <section class="card">
