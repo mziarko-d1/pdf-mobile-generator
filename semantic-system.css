@@ -21,3 +21,73 @@
 .topic.semantic-auto[data-semantic="hcp"] .box.important,.topic.semantic-auto[data-semantic="hcp"] .box.additional{background:#F0F2FB!important}
 .topic.semantic-auto[data-semantic="product"] .topic-icon{color:#3F506E!important}.topic.semantic-auto[data-semantic="patient"] .topic-icon{color:#D9A081!important}.topic.semantic-auto[data-semantic="hcp"] .topic-icon{color:#9099CF!important}
 .sidebar .semantic-screen-controls,.sidebar .semantic-block-control,.sidebar .semantic-system-card{color:#1D1E3C!important}
+
+/* Semantic treatment v2: meaning is visible in headings, emphasis and box surfaces. */
+.topic.semantic-auto .topic-title,
+.topic.semantic-auto .topic-body strong,
+.topic.semantic-auto .topic-body b{
+  color:var(--semantic-icon)!important;
+}
+.topic.semantic-auto .topic-body li::marker{
+  color:var(--semantic-icon)!important;
+}
+.topic.semantic-auto .box.important,
+.topic.semantic-auto .box.warning,
+.topic.semantic-auto .box.additional{
+  background:var(--semantic-tint)!important;
+  border-left:4px solid var(--semantic-main)!important;
+}
+.topic.semantic-auto .box.remember{
+  background:var(--semantic-tint)!important;
+  border:1.5px solid var(--semantic-main)!important;
+}
+.topic.semantic-auto .box.whitecard{
+  border-top:4px solid var(--semantic-main)!important;
+}
+.topic.semantic-auto[data-semantic="product"] .box.important,
+.topic.semantic-auto[data-semantic="product"] .box.warning,
+.topic.semantic-auto[data-semantic="product"] .box.additional,
+.topic.semantic-auto[data-semantic="product"] .box.remember{background:#EFF1F5!important}
+.topic.semantic-auto[data-semantic="patient"] .box.important,
+.topic.semantic-auto[data-semantic="patient"] .box.warning,
+.topic.semantic-auto[data-semantic="patient"] .box.additional,
+.topic.semantic-auto[data-semantic="patient"] .box.remember{background:#FBF2ED!important}
+.topic.semantic-auto[data-semantic="hcp"] .box.important,
+.topic.semantic-auto[data-semantic="hcp"] .box.warning,
+.topic.semantic-auto[data-semantic="hcp"] .box.additional,
+.topic.semantic-auto[data-semantic="hcp"] .box.remember{background:#F0F2FB!important}
+
+/* Desktop editor layout: left controls scroll independently, preview stays in place. */
+@media (min-width:901px){
+  html,body{height:100%;overflow:hidden}
+  .app{height:100vh;min-height:0;overflow:hidden}
+  .sidebar{
+    height:100vh;
+    overflow-y:auto!important;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+  }
+  .workspace{
+    height:100vh;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior:contain;
+  }
+  .workspace-top{
+    position:sticky;
+    top:0;
+    z-index:30;
+    background:#fff;
+    padding:0 0 14px;
+    margin-bottom:6px;
+  }
+  .canvas{
+    flex-direction:row!important;
+    flex-wrap:wrap;
+    align-items:flex-start;
+    justify-content:center;
+    gap:28px;
+    padding-bottom:48px;
+  }
+}
