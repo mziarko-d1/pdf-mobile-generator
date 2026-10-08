@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261008-5">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
+  <link rel="stylesheet" href="styles.css?v=20261008-6">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -165,6 +165,8 @@
       <button id="svgImportDemo" class="secondary full" type="button">Pokaż demo SVG · 2 strony</button>
       <button id="svgJumpToEditor" class="ghost full" type="button">Przejdź do edycji SVG</button>
       <div id="svgImportStatus" class="status">Najlepiej działa SVG z tekstem pozostawionym jako tekst, nie jako krzywe.</div>
+      <div class="svg-import-rule">1 plik SVG = 1 strona. Jeśli masz kilka artboardów w Illustratorze, wyeksportuj je jako osobne pliki SVG i zaznacz wszystkie naraz.</div>
+      <div id="svgQuickEditor" class="svg-quick-editor hidden"></div>
     </section>
 
     <section class="card">
@@ -249,6 +251,6 @@
 <script src="admin-config.js?v=20261008-1"></script>
 <script src="admin-auth.js?v=20261008-1"></script>
 <script src="template-system.js?v=20261008-4"></script>\n<script src="undo-system.js?v=20261008-2"></script>
-<script src="svg-import.js?v=20261008-3"></script>
+<script src="svg-import.js?v=20261008-4"></script>
 </body>
 </html>
