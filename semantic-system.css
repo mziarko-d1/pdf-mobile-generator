@@ -545,3 +545,116 @@
   justify-content:flex-end;
   max-width:142px;
 }
+
+
+/* Admin library controls v1 */
+.admin-bar{
+  margin:0 0 12px;
+  padding:10px 12px;
+  border:1px solid #E5E8F0;
+  border-radius:13px;
+  background:#F8F9FC;
+}
+.admin-bar.is-admin{
+  border-color:#BFDCC6;
+  background:#F4FBF6;
+}
+.admin-bar-main{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.admin-bar-title{
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
+  color:#1D1E3C;
+}
+.admin-identity{
+  margin-top:2px;
+  font-size:8px;
+  line-height:1.25;
+  color:#77819A;
+}
+.admin-bar-actions{
+  display:flex;
+  gap:5px;
+  flex:0 0 auto;
+}
+.admin-bar .mini{
+  padding:6px 8px!important;
+  font-size:8px!important;
+}
+.admin-auth-status{
+  margin-top:7px;
+  font-size:8px;
+  line-height:1.35;
+  color:#77819A;
+}
+.admin-auth-status.ok{color:#2F6E3D}
+.admin-auth-status.err{color:#9B3E35}
+.admin-auth-status.setup{color:#8B6B20}
+.admin-device-box{
+  margin-top:8px;
+  padding:9px;
+  border-radius:10px;
+  background:#fff;
+  border:1px solid #DFE3EC;
+}
+.admin-device-label{
+  font-size:7px;
+  line-height:1.2;
+  font-weight:800;
+  color:#77819A;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.admin-device-code{
+  display:block;
+  margin:4px 0 7px;
+  font-size:16px;
+  line-height:1;
+  letter-spacing:.08em;
+  color:#1D1E3C;
+}
+.admin-device-link{
+  font-size:8px;
+  line-height:1.2;
+  font-weight:700;
+  color:#3F506E;
+  text-decoration:underline;
+}
+.shared-template-admin-editor{
+  margin:9px 0;
+  padding:10px;
+  border:1px solid #ACB8E9;
+  border-radius:11px;
+  background:#F0F2FB;
+}
+.shared-template-admin-copy strong{
+  display:block;
+  font-size:9px;
+  line-height:1.25;
+  color:#1D1E3C;
+}
+.shared-template-admin-copy span{
+  display:block;
+  margin-top:3px;
+  font-size:8px;
+  line-height:1.35;
+  color:#59637C;
+}
+.shared-template-admin-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:8px;
+}
+.shared-template-admin-actions button{
+  font-size:8px!important;
+  padding:7px 9px!important;
+}
+.admin-template-action{
+  border-color:#ACB8E9!important;
+}
