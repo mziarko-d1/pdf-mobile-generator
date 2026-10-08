@@ -188,11 +188,12 @@ function renderEditor(){
     $('coverHeading').oninput=e=>{p.heading=e.target.value;renderPreview();renderScreenList()};return;
   }
   const bgHint=p.pdfBackground?'<div class="brand-note">Oryginalna strona PDF jest tłem. Edytujesz tylko nakładki.</div>':'';
-  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addColumns" class="mini secondary">+ Kolumny</button></div></div><div id="blocks"></div>';
+  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addWhiteCard" class="mini secondary">+ Biały box</button><button id="addColumns" class="mini secondary">+ Kolumny</button></div></div><div id="blocks"></div>';
   if(!p.pdfBackground){$('pageTitle').oninput=e=>{p.title=e.target.value;renderPreview();renderScreenList()};$('pageIntro').oninput=e=>{p.intro=e.target.value;renderPreview()}}
   $('addText').onclick=()=>{p.blocks.push(newBlock('paragraph'));renderEditor();renderPreview()};
   $('addList').onclick=()=>{p.blocks.push(newBlock('bullets'));renderEditor();renderPreview()};
   $('addBox').onclick=()=>{p.blocks.push(newBlock('important'));renderEditor();renderPreview()};
+  $('addWhiteCard').onclick=()=>{p.blocks.push(newBlock('whitecard'));renderEditor();renderPreview()};
   $('addColumns').onclick=()=>{p.blocks.push(newColumnsBlock(2));renderEditor();renderPreview()};
   $('blocks').innerHTML=(p.blocks||[]).map((b,i)=>blockEditorHtml(b,i)).join('');
   bindBlockEditors(p);
