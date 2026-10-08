@@ -367,6 +367,180 @@
     return pageComfortable(screen);
   }
 
+  function cloneImportValue(value){
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function freshenImportedBlock(block){
+    const copy=cloneImportValue(block||{});
+    copy.id=uid('b');
+    return copy;
+  }
+
+  function captureLayoutBlueprint(){
+    const sourceScreens=Array.isArray(state.screens)?state.screens:[];
+    const cover=sourceScreens.find(function(screen){return screen&&screen.type==='cover';});
+    const content=sourceScreens.filter(function(screen){return screen&&screen.type!=='cover';});
+    if(!cover||!content.length) return null;
+
+    return {
+      cover:cloneImportValue(cover),
+      content:content.map(cloneImportValue),
+      format:state.format,
+      w:state.w,
+      h:state.h,
+      preset:state.preset,
+      palette:cloneImportValue(state.palette||{}),
+      template:state.template||'',
+      materialLogo:state.materialLogo||''
+    };
+  }
+
+  function sourceBlockForSlot(piece,slot){
+    if(!slot) return freshenImportedBlock(piece);
+
+    if(piece&&piece.type==='image'){
+      const image=freshenImportedBlock(piece);
+      image.semanticRole=slot.semanticRole||piece.semanticRole||'inherit';
+      return image;
+    }
+
+    const out=freshenImportedBlock(slot);
+    const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText'];
+    const slotType=String(slot.type||'paragraph');
+    const pieceType=String((piece&&piece.type)||'paragraph');
+
+    if(!semanticSlotTypes.includes(slotType)) out.type=pieceType;
+    out.title=(piece&&piece.title)?piece.title:(semanticSlotTypes.includes(slotType)?String(slot.title||''):'');
+    out.body=String((piece&&piece.body)||'');
+    out.semanticRole=slot.semanticRole||(piece&&piece.semanticRole)||'inherit';
+
+    if(piece&&piece.suggestedBox&&!semanticSlotTypes.includes(slotType)){
+      out.suggestedBox=piece.suggestedBox;
+    }else{
+      delete out.suggestedBox;
+    }
+
+    return out;
+  }
+
+  function coverFromBlueprint(blueprint,title){
+    const cover=cloneImportValue(blueprint.cover);
+    cover.id=uid('p');
+    cover.heading=title||cover.heading||'Zaimportowany materiał';
+    if(Array.isArray(cover.blocks)){
+      cover.blocks=cover.blocks.map(freshenImportedBlock);
+    }else{
+      cover.blocks=[];
+    }
+    return cover;
+  }
+
+  function contentScreenFromBlueprint(blueprint,patternIndex,group,groupKey,continued){
+    const source=blueprint.content[patternIndex%blueprint.content.length]||blueprint.content[0];
+    const screen=cloneImportValue(source);
+    screen.id=uid('p');
+    screen.type='content';
+    screen.title=(group&&group.heading)||screen.title||'Treść';
+    screen.intro='';
+    screen.blocks=[];
+    screen.hidePageTitle=continued?true:!!source.hidePageTitle;
+    screen.importedContent=true;
+    screen.importGroup=groupKey||uid('group');
+    screen.importBaseTitle=(group&&group.heading)||screen.title||'Treść';
+    return {screen:screen,slots:Array.isArray(source.blocks)?source.blocks.map(cloneImportValue):[]};
+  }
+
+  async function buildScreensFromBlueprint(parsed,role,blueprint){
+    const cover=coverFromBlueprint(blueprint,parsed.title);
+    const screens=[cover];
+    let patternIndex=0;
+    state.screens=screens;
+    state.selected=cover.id;
+
+    async function addGroup(group,groupIndex){
+      const groupKey='import_'+groupIndex+'_'+Date.now();
+      const pieces=[];
+      (group.blocks||[]).forEach(function(block){
+        expandBlock(block).forEach(function(piece){pieces.push(piece);});
+      });
+      if(!pieces.length) return;
+
+      if(group.suggestedBox){
+        const firstEligible=pieces.find(function(piece){return piece&&piece.type!=='image';});
+        if(firstEligible&&!firstEligible.suggestedBox) firstEligible.suggestedBox=group.suggestedBox;
+      }
+
+      let blueprintPage=contentScreenFromBlueprint(blueprint,patternIndex++,group,groupKey,false);
+      let current=blueprintPage.screen;
+      let slots=blueprintPage.slots;
+      let slotIndex=0;
+      screens.push(current);
+      state.screens=screens;
+
+      for(let pieceIndex=0;pieceIndex<pieces.length;pieceIndex++){
+        const piece=pieces[pieceIndex];
+
+        if(slots.length&&slotIndex>=slots.length){
+          blueprintPage=contentScreenFromBlueprint(blueprint,patternIndex++,group,groupKey,true);
+          current=blueprintPage.screen;
+          slots=blueprintPage.slots;
+          slotIndex=0;
+          screens.push(current);
+          state.screens=screens;
+        }
+
+        const slot=slots.length?slots[slotIndex]:null;
+        const block=sourceBlockForSlot(piece,slot);
+        current.blocks.push(block);
+        state.selected=current.id;
+
+        const fits=await renderAndMeasure(current);
+        if(fits){
+          slotIndex+=1;
+          continue;
+        }
+
+        current.blocks.pop();
+
+        if(!current.blocks.length){
+          current.blocks.push(block);
+          slotIndex+=1;
+          continue;
+        }
+
+        blueprintPage=contentScreenFromBlueprint(blueprint,patternIndex++,group,groupKey,true);
+        current=blueprintPage.screen;
+        slots=blueprintPage.slots;
+        slotIndex=0;
+        screens.push(current);
+        state.screens=screens;
+
+        current.blocks.push(sourceBlockForSlot(piece,slots.length?slots[0]:null));
+        slotIndex=1;
+        state.selected=current.id;
+        await renderAndMeasure(current);
+      }
+    }
+
+    for(let groupIndex=0;groupIndex<parsed.groups.length;groupIndex++){
+      await addGroup(parsed.groups[groupIndex],groupIndex);
+    }
+
+    if(parsed.finalCode){
+      await addGroup({
+        heading:'Źródła',
+        blocks:[makeTextBlock('paragraph','',parsed.finalCode)]
+      },'sources_code');
+    }
+
+    state.screens=screens;
+    state.selected=cover.id;
+    render();
+    await nextFrame();
+    return screens;
+  }
+
   async function buildScreensToFit(parsed,role){
     const cover=coverScreen();
     cover.heading=parsed.title;
@@ -558,7 +732,11 @@
 
     const role=roleByTemplate[templateSelect.value]||'neutral';
 
-    if(!confirm('Wypełnić generator zaimportowaną treścią?\n\nBieżące strony projektu zostaną zastąpione.')) return;
+    const layoutBlueprint=captureLayoutBlueprint();
+    const confirmMessage=layoutBlueprint
+      ?'Wypełnić bieżący układ zaimportowaną treścią?\n\nFormat, kolory i styl szablonu zostaną zachowane. Zmieniona zostanie tylko kopia projektu.'
+      :'Wypełnić generator zaimportowaną treścią?\n\nBieżące strony projektu zostaną zastąpione.';
+    if(!confirm(confirmMessage)) return;
 
     const oldText=button.textContent;
     button.disabled=true;
@@ -568,15 +746,32 @@
       setStatus(file?'Czytam pełną treść PDF…':'Pobieram wyłącznie treść artykułu…','');
       const parsed=file?await readPdf(file):await fetchArticle(url);
 
-      state.name=parsed.title||'Zaimportowany materiał';
-      state.w=390;
-      state.h=844;
-      state.format='mobile';
-      state.preset='doctor';
-      state.palette={...doctorPalette};
+      if(window.pdfMobileUndo&&window.pdfMobileUndo.checkpoint) window.pdfMobileUndo.checkpoint();
 
-      setStatus('Układam treść tak, aby strony były wypełnione, ale nic nie wychodziło poza ekran…','');
-      const screens=await buildScreensToFit(parsed,role);
+      state.name=parsed.title||'Zaimportowany materiał';
+
+      let screens;
+      if(layoutBlueprint){
+        state.format=layoutBlueprint.format;
+        state.w=layoutBlueprint.w;
+        state.h=layoutBlueprint.h;
+        state.preset=layoutBlueprint.preset;
+        state.palette=cloneImportValue(layoutBlueprint.palette||{});
+        state.template=layoutBlueprint.template;
+        state.materialLogo=layoutBlueprint.materialLogo;
+
+        setStatus('Wypełniam wybrany szablon treścią i zachowuję jego format, kolory oraz układ…','');
+        screens=await buildScreensFromBlueprint(parsed,role,layoutBlueprint);
+      }else{
+        state.w=390;
+        state.h=844;
+        state.format='mobile';
+        state.preset='doctor';
+        state.palette={...doctorPalette};
+
+        setStatus('Układam treść tak, aby strony były wypełnione, ale nic nie wychodziło poza ekran…','');
+        screens=await buildScreensToFit(parsed,role);
+      }
 
       if(screens.length<2){
         throw new Error('Nie udało się znaleźć wystarczającej treści artykułu do zbudowania materiału.');
@@ -591,7 +786,8 @@
         return total+(screen.blocks||[]).filter(function(block){return !!block.suggestedBox;}).length;
       },0);
       const suggestionText=suggestionCount?' Sugestie wyróżnień: '+suggestionCount+'.':'';
-      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka. Strony są wypełniane do komfortowej gęstości; typ każdego bloku możesz potem zmienić.'+suggestionText,'ok');
+      const layoutText=layoutBlueprint?' Zachowano format i styl wybranego szablonu.':'';
+      setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka.'+layoutText+' Strony są wypełniane do komfortowej gęstości; typ każdego bloku możesz potem zmienić.'+suggestionText,'ok');
 
       const workspace=document.querySelector('.workspace');
       if(workspace) workspace.scrollTo({top:0,behavior:'smooth'});
