@@ -157,6 +157,15 @@
       <div id="importStatus" class="status"></div>
     </section>
 
+    <section class="card" id="svgImportCard">
+      <h2>Import SVG · edytowalny</h2>
+      <p class="muted">Wgraj SVG z Illustratora/Figmy. Teksty, obrazy i podstawowe kształty zostaną wykryte do edycji, a cały layout pozostanie na swoim miejscu.</p>
+      <label>Plik SVG</label>
+      <input id="svgImportFile" type="file" accept=".svg,image/svg+xml">
+      <button id="svgImportDemo" class="secondary full" type="button">Pokaż demo SVG</button>
+      <div id="svgImportStatus" class="status">Najlepiej działa SVG z tekstem pozostawionym jako tekst, nie jako krzywe.</div>
+    </section>
+
     <section class="card">
       <h2>Format</h2>
       <select id="format"><option value="mobile">Mobile · 390 × 844</option><option value="a4p">A4 pion · 794 × 1123</option><option value="a4l">A4 poziom · 1123 × 794</option><option value="custom">Własny</option></select>
@@ -239,5 +248,6 @@
 <script src="admin-config.js?v=20261008-1"></script>
 <script src="admin-auth.js?v=20261008-1"></script>
 <script src="template-system.js?v=20261008-4"></script>\n<script src="undo-system.js?v=20261008-2"></script>
+<script src="svg-import.js?v=20261008-1"></script>
 </body>
 </html>
