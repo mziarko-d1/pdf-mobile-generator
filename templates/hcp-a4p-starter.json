@@ -1,0 +1,66 @@
+{
+  "doctorOneTemplateVersion": 1,
+  "meta": {
+    "name": "HCP · A4 pion starter",
+    "format": "a4p",
+    "w": 794,
+    "h": 1123,
+    "screenCount": 2,
+    "description": "Wspólny szablon startowy Doctor.One"
+  },
+  "project": {
+    "name": "HCP · A4 pion starter",
+    "format": "a4p",
+    "w": 794,
+    "h": 1123,
+    "preset": "doctor",
+    "palette": {
+      "ink": "#1D1E3C",
+      "body": "#3F506E",
+      "bg": "#F5F6FA",
+      "important": "#E6EAFF",
+      "warning": "#F7EAE4",
+      "remember": "#9AABDB",
+      "additional": "#F5F6FA"
+    },
+    "template": "",
+    "materialLogo": "",
+    "screens": [
+      {
+        "id": "cover",
+        "type": "cover",
+        "heading": "Tytuł materiału klinicznego",
+        "blocks": []
+      },
+      {
+        "id": "content1",
+        "type": "content",
+        "title": "Kontekst kliniczny",
+        "intro": "",
+        "blocks": [
+          {
+            "id": "block1",
+            "type": "paragraph",
+            "title": "",
+            "body": "Wprowadź treść materiału.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "block2",
+            "type": "important",
+            "title": "Ważne",
+            "body": "Dodaj kluczową informację dla HCP.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          }
+        ],
+        "semanticStyle": "hcp",
+        "semanticAuto": true
+      }
+    ],
+    "selected": "cover"
+  }
+}
