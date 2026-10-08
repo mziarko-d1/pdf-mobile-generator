@@ -1,0 +1,84 @@
+{
+  "doctorOneTemplateVersion": 1,
+  "meta": {
+    "name": "Patient · Mobile starter · kopia",
+    "format": "mobile",
+    "w": 390,
+    "h": 844,
+    "screenCount": 2,
+    "description": "Wspólny szablon Doctor.One."
+  },
+  "project": {
+    "name": "Patient · Mobile starter · kopia",
+    "format": "mobile",
+    "w": 390,
+    "h": 844,
+    "preset": "doctor",
+    "palette": {
+      "ink": "#1D1E3C",
+      "body": "#3F506E",
+      "bg": "#F5F6FA",
+      "important": "#E6EAFF",
+      "warning": "#F7EAE4",
+      "remember": "#9AABDB",
+      "additional": "#F5F6FA"
+    },
+    "template": "",
+    "materialLogo": "",
+    "screens": [
+      {
+        "id": "p_muzi2l36_l9moqi",
+        "type": "cover",
+        "heading": "Tytuł materiału dla pacjenta",
+        "blocks": []
+      },
+      {
+        "id": "p_muzi2l36_h363v5",
+        "type": "content",
+        "title": "Tytuł sekcji",
+        "intro": "",
+        "blocks": [
+          {
+            "id": "b_muzi2l36_uapqst",
+            "type": "paragraph",
+            "title": "",
+            "body": "Wprowadź treść materiału.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "b_muzi2l36_njj77y",
+            "type": "remember",
+            "title": "Pamiętaj",
+            "body": "Dodaj krótką informację, którą pacjent powinien zapamiętać.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "b_muzi2xz6_9l8a8f",
+            "type": "important",
+            "title": "Ważne",
+            "body": "Tutaj wpisz ważną informację.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "b_muzi30ny_dsx8ek",
+            "type": "whitecard",
+            "title": "Nagłówek",
+            "body": "Tutaj wpisz treść.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          }
+        ],
+        "semanticStyle": "patient",
+        "semanticAuto": true
+      }
+    ],
+    "selected": "p_muzi2l36_h363v5"
+  }
+}
