@@ -1,0 +1,66 @@
+{
+  "doctorOneTemplateVersion": 1,
+  "meta": {
+    "name": "Patient · Mobile starter",
+    "format": "mobile",
+    "w": 390,
+    "h": 844,
+    "screenCount": 2,
+    "description": "Mobilny wzorzec edukacyjny dla treści patient-facing."
+  },
+  "project": {
+    "name": "Patient · Mobile starter",
+    "format": "mobile",
+    "w": 390,
+    "h": 844,
+    "preset": "doctor",
+    "palette": {
+      "ink": "#1D1E3C",
+      "body": "#3F506E",
+      "bg": "#F5F6FA",
+      "important": "#E6EAFF",
+      "warning": "#F7EAE4",
+      "remember": "#9AABDB",
+      "additional": "#F5F6FA"
+    },
+    "template": "",
+    "materialLogo": "",
+    "screens": [
+      {
+        "id": "p_muzi27bi_k6jjuu",
+        "type": "cover",
+        "heading": "Tytuł materiału dla pacjenta",
+        "blocks": []
+      },
+      {
+        "id": "p_muzi27bi_3ve8zo",
+        "type": "content",
+        "title": "Tytuł sekcji",
+        "intro": "",
+        "blocks": [
+          {
+            "id": "b_muzi27bi_ry4zw1",
+            "type": "paragraph",
+            "title": "",
+            "body": "Wprowadź treść materiału.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "b_muzi27bi_tn8zjc",
+            "type": "remember",
+            "title": "Pamiętaj",
+            "body": "Dodaj krótką informację, którą pacjent powinien zapamiętać.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          }
+        ],
+        "semanticStyle": "patient",
+        "semanticAuto": true
+      }
+    ],
+    "selected": "p_muzi27bi_k6jjuu"
+  }
+}
