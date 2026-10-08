@@ -1,0 +1,66 @@
+{
+  "doctorOneTemplateVersion": 1,
+  "meta": {
+    "name": "Product · A4 poziom starter",
+    "format": "a4l",
+    "w": 1123,
+    "h": 794,
+    "screenCount": 2,
+    "description": "Wspólny szablon startowy Doctor.One"
+  },
+  "project": {
+    "name": "Product · A4 poziom starter",
+    "format": "a4l",
+    "w": 1123,
+    "h": 794,
+    "preset": "doctor",
+    "palette": {
+      "ink": "#1D1E3C",
+      "body": "#3F506E",
+      "bg": "#F5F6FA",
+      "important": "#E6EAFF",
+      "warning": "#F7EAE4",
+      "remember": "#9AABDB",
+      "additional": "#F5F6FA"
+    },
+    "template": "",
+    "materialLogo": "",
+    "screens": [
+      {
+        "id": "cover",
+        "type": "cover",
+        "heading": "Tytuł materiału produktowego",
+        "blocks": []
+      },
+      {
+        "id": "content1",
+        "type": "content",
+        "title": "Najważniejsze informacje",
+        "intro": "",
+        "blocks": [
+          {
+            "id": "block1",
+            "type": "paragraph",
+            "title": "",
+            "body": "Wprowadź treść materiału.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          },
+          {
+            "id": "block2",
+            "type": "whitecard",
+            "title": "Kluczowy element",
+            "body": "Dodaj treść dotyczącą produktu, wdrożenia lub procesu.",
+            "showIcon": false,
+            "icon": "check",
+            "semanticRole": "inherit"
+          }
+        ],
+        "semanticStyle": "product",
+        "semanticAuto": true
+      }
+    ],
+    "selected": "cover"
+  }
+}
