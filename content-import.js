@@ -344,6 +344,13 @@
     return (screen.blocks||[]).reduce(function(total,block){
       if(!block) return total;
       if(block.type==='image') return total+260;
+      if(block.type==='columns'&&Array.isArray(block.columns)){
+        return total+block.columns.reduce(function(columnTotal,column){
+          if(!column) return columnTotal;
+          if(column.kind==='image') return columnTotal+180;
+          return columnTotal+String(column.title||'').length*1.2+String(column.body||'').length;
+        },0);
+      }
       return total+
         String(block.title||'').length*1.4+
         String(block.body||'').length;
@@ -374,6 +381,9 @@
   function freshenImportedBlock(block){
     const copy=cloneImportValue(block||{});
     copy.id=uid('b');
+    if(copy.type==='columns'&&Array.isArray(copy.columns)){
+      copy.columns.forEach(function(column){column.id=uid('col');});
+    }
     return copy;
   }
 
@@ -406,8 +416,18 @@
     }
 
     const out=freshenImportedBlock(slot);
-    const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText'];
     const slotType=String(slot.type||'paragraph');
+    if(slotType==='columns'){
+      const columns=Array.isArray(out.columns)?out.columns:[];
+      const target=columns.find(function(column){return column&&column.kind!=='image';});
+      if(target){
+        target.title=(piece&&piece.title)?piece.title:String(target.title||'');
+        target.body=String((piece&&piece.body)||'');
+      }
+      out.columnCount=Math.max(1,Math.min(3,Number(out.columnCount)||columns.length||2));
+      return out;
+    }
+    const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText'];
     const pieceType=String((piece&&piece.type)||'paragraph');
 
     if(!semanticSlotTypes.includes(slotType)) out.type=pieceType;
