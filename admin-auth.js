@@ -130,13 +130,10 @@
     loginButton.disabled=true;
     setStatus('Łączę z GitHub…','');
     try{
-      const deviceResponse=await fetch('https://github.com/login/device/code',{
+      const deviceResponse=await fetch((config.proxyBaseUrl||'')+'/api/device-code',{
         method:'POST',
-        headers:{
-          'Accept':'application/json',
-          'Content-Type':'application/x-www-form-urlencoded'
-        },
-        body:formBody({client_id:config.githubClientId})
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({client_id:config.githubClientId})
       });
       if(!deviceResponse.ok) throw new Error('Nie udało się rozpocząć logowania GitHub.');
       const device=await deviceResponse.json();
@@ -153,18 +150,10 @@
 
       while(Date.now()<expiresAt){
         await sleep(interval*1000);
-        const tokenResponse=await fetch('https://github.com/login/oauth/access_token',{
+        const tokenResponse=await fetch((config.proxyBaseUrl||'')+'/api/token',{
           method:'POST',
-          headers:{
-            'Accept':'application/json',
-            'Content-Type':'application/x-www-form-urlencoded'
-          },
-          body:formBody({
-            client_id:config.githubClientId,
-            device_code:device.device_code,
-            grant_type:'urn:ietf:params:oauth:grant-type:device_code',
-            repository_id:config.repositoryId
-          })
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({client_id:config.githubClientId,device_code:device.device_code})
         });
         if(!tokenResponse.ok) throw new Error('GitHub nie zwrócił tokenu administratora.');
         const payload=await tokenResponse.json();
