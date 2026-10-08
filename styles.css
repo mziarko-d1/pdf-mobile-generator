@@ -116,6 +116,7 @@
 }
 .whitecard-v2.media-left{
   flex-direction:row;
+  align-items:center;
 }
 .whitecard-v2.align-center{
   text-align:center;
