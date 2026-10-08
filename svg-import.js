@@ -2,6 +2,7 @@
   const fileInput=document.getElementById('svgImportFile');
   const demoButton=document.getElementById('svgImportDemo');
   const status=document.getElementById('svgImportStatus');
+  const quickEditor=document.getElementById('svgQuickEditor');
   if(!fileInput||!demoButton||!status) return;
 
   const originalRenderPreview=renderPreview;
@@ -290,6 +291,7 @@
     state.selected=screens[0].id;
 
     render();
+    renderQuickEditor();
     const projectName=document.getElementById('projectName');
     if(projectName) projectName.value=state.name;
 
@@ -359,21 +361,73 @@
     return (screen.svg.elements||[]).find(function(item){return item.id===id;});
   }
 
+  function focusSvgEditorItem(id){
+    const selector='[data-svg-item-card="'+id+'"]';
+    const target=(quickEditor&&quickEditor.querySelector(selector))||document.querySelector('#editor '+selector);
+    if(!target) return;
+    target.classList.add('is-focused');
+    target.scrollIntoView({behavior:'smooth',block:'center'});
+    clearTimeout(focusSvgEditorItem.timer);
+    focusSvgEditorItem.timer=setTimeout(function(){target.classList.remove('is-focused');},1600);
+    const field=target.querySelector('textarea,input:not([type=file]),select');
+    if(field) setTimeout(function(){try{field.focus();}catch{}},350);
+  }
+
   function renderSvgPreview(){
     originalRenderPreview();
+    const maxPreviewHeight=Math.max(520,Math.min(760,window.innerHeight-150));
+
     (state.screens||[]).forEach(function(screen){
       if(!screen||screen.type!=='svg'||!screen.svg) return;
       const page=document.querySelector('[data-select-page="'+screen.id+'"]');
       if(!page) return;
+
       page.classList.add('svg-page');
       page.removeAttribute('data-drop-page');
-      page.innerHTML='<div class="svg-page-inner"><img class="svg-page-artwork" alt="'+html(screen.svg.originalName||'SVG')+'" src="'+html(svgDataUrl(screen.svg.source))+'"></div>';
+
+      const wrap=page.closest('.page-wrap');
+      const stage=page.closest('.page-stage');
+      if(stage){
+        const scale=Math.min(scaleForPreview(),maxPreviewHeight/Math.max(1,state.h));
+        stage.style.width=(state.w*scale)+'px';
+        stage.style.height=(state.h*scale)+'px';
+        page.style.transform='scale('+scale+')';
+      }
+
+      page.innerHTML='<div class="svg-page-inner">'+screen.svg.source+'</div>';
+      const inlineSvg=page.querySelector('.svg-page-inner > svg');
+      if(inlineSvg){
+        inlineSvg.setAttribute('width','100%');
+        inlineSvg.setAttribute('height','100%');
+        inlineSvg.setAttribute('preserveAspectRatio','xMidYMid meet');
+        inlineSvg.style.display='block';
+        inlineSvg.style.width='100%';
+        inlineSvg.style.height='100%';
+      }
+
+      page.querySelectorAll('['+EDIT_ATTR+']').forEach(function(node){
+        const id=node.getAttribute(EDIT_ATTR);
+        if(!id) return;
+        node.classList.add('svg-editable-node');
+        node.addEventListener('click',function(event){
+          event.stopPropagation();
+          state.selected=screen.id;
+          renderScreenList();
+          renderSvgEditor();
+          renderQuickEditor();
+          focusSvgEditorItem(id);
+        });
+      });
+
+      if(wrap){
+        wrap.querySelectorAll('.page-dragbar span')[0].textContent='Strona '+((state.screens||[]).indexOf(screen)+1)+' · '+state.w+' × '+state.h;
+      }
     });
   }
 
   function textEditor(item){
     const fontValue=String(item.fontSize||'16').replace(/[^0-9.]/g,'')||'16';
-    return '<div class="svg-editor-item">'+
+    return '<div class="svg-editor-item" data-svg-item-card="'+item.id+'">'+
       '<div class="svg-editor-head"><strong>'+html(item.label||'Tekst')+'</strong><span>TEKST</span></div>'+
       '<label>Treść</label><textarea data-svg-text="'+item.id+'">'+html(item.text||'')+'</textarea>'+
       '<div class="svg-editor-row"><div><label>Kolor</label><input data-svg-fill="'+item.id+'" value="'+html(item.fill||'#1D1E3C')+'"></div>'+
@@ -385,7 +439,7 @@
     const preview=item.href&&/^data:image\//i.test(item.href)
       ?'<img class="svg-editor-image-preview" src="'+html(item.href)+'" alt="">'
       :'<div class="svg-editor-image-empty">Obraz jest pusty albo był linkowany zewnętrznie. Wgraj plik, aby go osadzić.</div>';
-    return '<div class="svg-editor-item">'+
+    return '<div class="svg-editor-item" data-svg-item-card="'+item.id+'">'+
       '<div class="svg-editor-head"><strong>'+html(item.label||'Obraz')+'</strong><span>OBRAZ</span></div>'+
       preview+
       '<label>Podmień obraz</label><input data-svg-image="'+item.id+'" type="file" accept="image/*">'+
@@ -393,39 +447,35 @@
   }
 
   function shapeEditor(item){
-    return '<div class="svg-editor-item">'+
+    return '<div class="svg-editor-item" data-svg-item-card="'+item.id+'">'+
       '<div class="svg-editor-head"><strong>'+html(item.label||'Kształt')+'</strong><span>'+html(String(item.tag||'shape').toUpperCase())+'</span></div>'+
       '<div class="svg-editor-row"><div><label>Fill</label><input data-svg-fill="'+item.id+'" value="'+html(item.fill||'none')+'"></div>'+
       '<div><label>Stroke</label><input data-svg-stroke="'+item.id+'" value="'+html(item.stroke||'none')+'"></div></div>'+
       '</div>';
   }
 
-  function renderSvgEditor(){
-    const screen=currentSvgScreen();
-    if(!screen){
-      originalRenderEditor();
-      return;
-    }
-
+  function svgEditorMarkup(screen,compact){
     const items=screen.svg.elements||[];
-    const editor=document.getElementById('editor');
+    const textItems=items.filter(function(item){return item.type==='text';});
+    const editNotice=textItems.length
+      ?'<div class="svg-editor-help">Kliknij tekst na podglądzie albo edytuj go tutaj. Zmiana pojawia się od razu.</div>'
+      :'<div class="svg-editor-warning"><strong>Brak edytowalnego tekstu.</strong> Ten SVG wygląda tak, jakby Illustrator zamienił litery na krzywe. Wyeksportuj SVG ponownie z tekstem jako tekst.</div>';
+
     const body=items.map(function(item){
       if(item.type==='text') return textEditor(item);
       if(item.type==='image') return imageEditor(item);
       return shapeEditor(item);
     }).join('');
 
-    const textItems=items.filter(function(item){return item.type==='text';});
-    const editNotice=textItems.length
-      ?'<div class="svg-editor-help">Tekst jest edytowalny poniżej. Zmiana pojawia się od razu w podglądzie.</div>'
-      :'<div class="svg-editor-warning"><strong>Brak edytowalnego tekstu.</strong> Ten SVG wygląda tak, jakby Illustrator zamienił litery na krzywe. Wyeksportuj SVG ponownie z opcją czcionki <strong>SVG</strong>, a nie „Konwertuj na kontury”.</div>';
-
-    editor.innerHTML=
-      '<div class="svg-editor-banner"><strong>Edytowalny SVG</strong><span>'+html(screen.svg.originalName||'SVG')+' · docelowo '+state.w+' × '+state.h+' px</span></div>'+
+    return '<div class="svg-editor-banner"><strong>Edytowalny SVG</strong><span>'+html(screen.svg.originalName||'SVG')+' · '+state.w+' × '+state.h+' px</span></div>'+
       editNotice+
       (items.length?body:'<div class="brand-note">Nie znaleziono obsługiwanych elementów do edycji. Sam wygląd SVG nadal zostaje zachowany.</div>');
+  }
 
-    editor.querySelectorAll('[data-svg-text]').forEach(function(input){
+  function bindSvgEditor(root,screen){
+    if(!root||!screen) return;
+
+    root.querySelectorAll('[data-svg-text]').forEach(function(input){
       input.oninput=function(){
         const item=descriptor(screen,input.dataset.svgText);
         if(!item) return;
@@ -435,7 +485,7 @@
       };
     });
 
-    editor.querySelectorAll('[data-svg-fill]').forEach(function(input){
+    root.querySelectorAll('[data-svg-fill]').forEach(function(input){
       input.oninput=function(){
         const item=descriptor(screen,input.dataset.svgFill);
         if(!item) return;
@@ -445,7 +495,7 @@
       };
     });
 
-    editor.querySelectorAll('[data-svg-stroke]').forEach(function(input){
+    root.querySelectorAll('[data-svg-stroke]').forEach(function(input){
       input.oninput=function(){
         const item=descriptor(screen,input.dataset.svgStroke);
         if(!item) return;
@@ -455,7 +505,7 @@
       };
     });
 
-    editor.querySelectorAll('[data-svg-font-size]').forEach(function(input){
+    root.querySelectorAll('[data-svg-font-size]').forEach(function(input){
       input.oninput=function(){
         const item=descriptor(screen,input.dataset.svgFontSize);
         if(!item) return;
@@ -466,7 +516,7 @@
       };
     });
 
-    editor.querySelectorAll('[data-svg-image]').forEach(function(input){
+    root.querySelectorAll('[data-svg-image]').forEach(function(input){
       input.onchange=async function(){
         const file=input.files&&input.files[0];
         if(!file) return;
@@ -479,9 +529,57 @@
           node.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',url);
         });
         renderSvgEditor();
+        renderQuickEditor();
         renderSvgPreview();
       };
     });
+  }
+
+  function renderQuickEditor(){
+    if(!quickEditor) return;
+    const screen=currentSvgScreen();
+
+    if(!screen){
+      quickEditor.classList.add('hidden');
+      quickEditor.innerHTML='';
+      return;
+    }
+
+    quickEditor.classList.remove('hidden');
+    const pageTabs=(state.screens||[]).filter(function(item){return item&&item.type==='svg';}).map(function(item,index){
+      return '<button class="mini '+(item.id===screen.id?'primary':'ghost')+'" type="button" data-svg-page="'+item.id+'">Strona '+(index+1)+'</button>';
+    }).join('');
+
+    quickEditor.innerHTML=
+      '<div class="svg-quick-head"><strong>Edytuj zaimportowany SVG</strong><span>Kliknij element na podglądzie lub zmień pole poniżej.</span></div>'+
+      ((state.screens||[]).length>1?'<div class="svg-page-tabs">'+pageTabs+'</div>':'')+
+      svgEditorMarkup(screen,true);
+
+    quickEditor.querySelectorAll('[data-svg-page]').forEach(function(button){
+      button.onclick=function(){
+        state.selected=button.dataset.svgPage;
+        renderScreenList();
+        renderSvgEditor();
+        renderSvgPreview();
+        renderQuickEditor();
+      };
+    });
+
+    bindSvgEditor(quickEditor,screen);
+  }
+
+  function renderSvgEditor(){
+    const screen=currentSvgScreen();
+    if(!screen){
+      originalRenderEditor();
+      renderQuickEditor();
+      return;
+    }
+
+    const editor=document.getElementById('editor');
+    editor.innerHTML=svgEditorMarkup(screen,false);
+    bindSvgEditor(editor,screen);
+    renderQuickEditor();
   }
 
   renderPreview=renderSvgPreview;
@@ -522,8 +620,8 @@
   const jumpButton=document.getElementById('svgJumpToEditor');
   if(jumpButton){
     jumpButton.addEventListener('click',function(){
-      const editor=document.getElementById('editor');
-      if(editor) editor.scrollIntoView({behavior:'smooth',block:'start'});
+      const target=(quickEditor&&!quickEditor.classList.contains('hidden'))?quickEditor:document.getElementById('editor');
+      if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
     });
   }
 
