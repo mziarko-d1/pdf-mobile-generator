@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-1">
+  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-2">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -36,30 +36,63 @@
 
     <section class="card" id="templateLibraryCard">
       <h2>Szablony</h2>
-      <p class="template-library-intro">Zapisz aktualny układ jako szablon i używaj go ponownie. Ten sam szablon możesz zapisać osobno dla Mobile, A4 pion i A4 poziom.</p>
-      <label>Nazwa szablonu</label>
-      <input id="templateName" type="text" placeholder="np. Patient · artykuł edukacyjny">
-      <label>Format zapisu</label>
-      <select id="templateSaveFormat">
-        <option value="current">Aktualny format projektu</option>
-        <option value="mobile">Mobile · 390 × 844</option>
-        <option value="a4p">A4 pion · 794 × 1123</option>
-        <option value="a4l">A4 poziom · 1123 × 794</option>
-        <option value="custom">Własny rozmiar</option>
-      </select>
-      <div id="templateCurrentFormat" class="template-current-format"></div>
-      <button id="saveAsTemplate" class="primary full" type="button">Zapisz jako szablon</button>
-      <div id="templateStatus" class="status">Szablony zapisują się lokalnie w tej przeglądarce.</div>
+      <p class="template-library-intro">Wspólne wzorce Doctor.One są dostępne dla każdego. Własne szablony możesz tworzyć lokalnie, a następnie wyeksportować je do publikacji.</p>
 
-      <label>Biblioteka szablonów</label>
-      <select id="templateFilter">
-        <option value="all">Wszystkie formaty</option>
-        <option value="mobile">Mobile</option>
-        <option value="a4p">A4 pion</option>
-        <option value="a4l">A4 poziom</option>
-        <option value="custom">Własne rozmiary</option>
-      </select>
-      <div id="templateLibraryList" class="template-library-list"></div>
+      <div class="template-section shared-template-section">
+        <div class="template-section-head">
+          <div>
+            <h3>Szablony Doctor.One</h3>
+            <p>Wspólna biblioteka · widoczna dla wszystkich użytkowników.</p>
+          </div>
+          <span class="template-shared-pill">WSPÓLNE</span>
+        </div>
+        <select id="sharedTemplateFilter">
+          <option value="all">Wszystkie formaty</option>
+          <option value="mobile">Mobile</option>
+          <option value="a4p">A4 pion</option>
+          <option value="a4l">A4 poziom</option>
+          <option value="custom">Własne rozmiary</option>
+        </select>
+        <div id="sharedTemplateStatus" class="status">Ładuję wspólną bibliotekę…</div>
+        <div id="sharedTemplateLibraryList" class="template-library-list"></div>
+      </div>
+
+      <div class="template-section-divider"></div>
+
+      <div class="template-section local-template-section">
+        <div class="template-section-head">
+          <div>
+            <h3>Moje szablony</h3>
+            <p>Tylko w tej przeglądarce. Możesz je później przygotować do publikacji w Doctor.One.</p>
+          </div>
+          <span class="template-local-pill">LOKALNE</span>
+        </div>
+
+        <label>Nazwa szablonu</label>
+        <input id="templateName" type="text" placeholder="np. Patient · artykuł edukacyjny">
+        <label>Format zapisu</label>
+        <select id="templateSaveFormat">
+          <option value="current">Aktualny format projektu</option>
+          <option value="mobile">Mobile · 390 × 844</option>
+          <option value="a4p">A4 pion · 794 × 1123</option>
+          <option value="a4l">A4 poziom · 1123 × 794</option>
+          <option value="custom">Własny rozmiar</option>
+        </select>
+        <div id="templateCurrentFormat" class="template-current-format"></div>
+        <button id="saveAsTemplate" class="primary full" type="button">Zapisz jako mój szablon</button>
+        <div id="templateStatus" class="status">Moje szablony zapisują się lokalnie w tej przeglądarce.</div>
+
+        <label>Moja biblioteka</label>
+        <select id="templateFilter">
+          <option value="all">Wszystkie formaty</option>
+          <option value="mobile">Mobile</option>
+          <option value="a4p">A4 pion</option>
+          <option value="a4l">A4 poziom</option>
+          <option value="custom">Własne rozmiary</option>
+        </select>
+        <div id="templateLibraryList" class="template-library-list"></div>
+        <p class="template-publish-note">Przycisk „Do Doctor.One” pobiera gotowy plik szablonu. Po dodaniu go do wspólnej biblioteki będzie widoczny dla każdego.</p>
+      </div>
     </section>
 
     <section class="card" id="contentImportCard">
@@ -183,6 +216,6 @@
   </main>
 </div>
 <script src="app.js?v=20260930-2"></script>\n<script src="semantic-system.js?v=20261001-4"></script>\n<script src="content-import.js?v=20261001-7"></script>
-<script src="template-system.js?v=20261008-1"></script>\n<script src="undo-system.js?v=20261001-1"></script>
+<script src="template-system.js?v=20261008-2"></script>\n<script src="undo-system.js?v=20261001-1"></script>
 </body>
 </html>
