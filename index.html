@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260930-2">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
+  <link rel="stylesheet" href="styles.css?v=20261008-3">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -208,10 +208,11 @@
         <button class="palette-item" draggable="true" data-new-type="whitecard">Biały box<small>z cieniem</small></button>
         <button id="imagePaletteButton" class="palette-item" type="button" data-new-type="image">Obrazek<small>kliknij, aby wgrać</small></button>
         <button id="imageTextPaletteButton" class="palette-item" type="button" data-new-type="imageText">Obrazek + tekst<small>kliknij, aby wgrać</small></button>
+        <button class="palette-item columns-palette" draggable="true" data-new-type="columns">Kolumny<small>1 / 2 / 3 · tekst lub obraz</small></button>
       </div>
       <input id="imageElementUpload" type="file" accept="image/*" hidden>
       <input id="imageTextElementUpload" type="file" accept="image/*" hidden>
-      <div class="reorder-help">„Obrazek” — działa jak wcześniej. „Obrazek + tekst” — układ 2 kolumn, przeciągany jak zwykły blok.</div>
+      <div class="reorder-help">„Obrazek” i „Obrazek + tekst” działają jak wcześniej. „Kolumny” pozwalają zbudować układ 1, 2 lub 3 kolumn; w każdej może być tekst albo obraz.</div>
     </section>
 
     <section class="card">
@@ -234,7 +235,7 @@
     <div id="canvas" class="canvas"></div>
   </main>
 </div>
-<script src="app.js?v=20260930-2"></script>\n<script src="semantic-system.js?v=20261001-4"></script>\n<script src="content-import.js?v=20261008-8"></script>
+<script src="app.js?v=20261008-3"></script>\n<script src="semantic-system.js?v=20261001-4"></script>\n<script src="content-import.js?v=20261008-8"></script>
 <script src="admin-config.js?v=20261008-1"></script>
 <script src="admin-auth.js?v=20261008-1"></script>
 <script src="template-system.js?v=20261008-3"></script>\n<script src="undo-system.js?v=20261001-1"></script>
