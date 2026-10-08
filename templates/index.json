@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-08",
+  "templates": [
+    {
+      "id": "patient-mobile-starter",
+      "name": "Patient · Mobile starter",
+      "description": "Mobilny wzorzec edukacyjny dla treści patient-facing.",
+      "category": "patient",
+      "format": "mobile",
+      "w": 390,
+      "h": 844,
+      "screenCount": 2,
+      "file": "templates/patient-mobile-starter.json"
+    },
+    {
+      "id": "hcp-a4p-starter",
+      "name": "HCP · A4 pion starter",
+      "description": "Pionowy A4 dla treści klinicznych i materiałów HCP.",
+      "category": "hcp",
+      "format": "a4p",
+      "w": 794,
+      "h": 1123,
+      "screenCount": 2,
+      "file": "templates/hcp-a4p-starter.json"
+    },
+    {
+      "id": "product-a4l-starter",
+      "name": "Product · A4 poziom starter",
+      "description": "Poziomy A4 dla materiałów produktowych i wdrożeniowych.",
+      "category": "product",
+      "format": "a4l",
+      "w": 1123,
+      "h": 794,
+      "screenCount": 2,
+      "file": "templates/product-a4l-starter.json"
+    }
+  ]
+}
