@@ -3,6 +3,17 @@
   "updatedAt": "2026-10-08",
   "templates": [
     {
+      "id": "patient-mobile-starter-kopia-mobile",
+      "name": "Patient · Mobile starter · kopia",
+      "description": "Wspólny szablon Doctor.One.",
+      "category": "doctor-one",
+      "format": "mobile",
+      "w": 390,
+      "h": 844,
+      "screenCount": 2,
+      "file": "templates/patient-mobile-starter-kopia-mobile.json"
+    },
+    {
       "id": "patient-mobile-starter",
       "name": "Patient · Mobile starter",
       "description": "Mobilny wzorzec edukacyjny dla treści patient-facing.",
