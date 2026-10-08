@@ -464,3 +464,84 @@
   padding:6px 8px!important;
   font-size:9px!important;
 }
+
+
+/* Shared Doctor.One template library v2 */
+.template-section{
+  margin-top:10px;
+}
+.template-section-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.template-section-head h3{
+  margin:0;
+  font-size:10px;
+  line-height:1.25;
+  color:#1D1E3C;
+}
+.template-section-head p{
+  margin:3px 0 0;
+  font-size:8px;
+  line-height:1.35;
+  color:#77819A;
+}
+.template-shared-pill,
+.template-local-pill{
+  flex:0 0 auto;
+  border-radius:999px;
+  padding:4px 7px;
+  font-size:7px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+.template-shared-pill{
+  background:#ECFBF0;
+  color:#2F6E3D;
+}
+.template-local-pill{
+  background:#ECEEF5;
+  color:#59637C;
+}
+.template-section-divider{
+  height:1px;
+  background:#E8EAF0;
+  margin:14px 0;
+}
+.shared-template-item{
+  background:#fff;
+  border-color:#DDE3F1;
+}
+.shared-template-badge{
+  display:inline-block;
+  margin-right:5px;
+  padding:2px 5px;
+  border-radius:999px;
+  background:#3F506E;
+  color:#fff;
+  font-size:6px;
+  line-height:1.15;
+  font-weight:800;
+  vertical-align:1px;
+}
+.template-library-description{
+  margin-top:4px;
+  font-size:8px;
+  line-height:1.35;
+  color:#59637C;
+}
+.template-publish-note{
+  margin:8px 0 0;
+  font-size:8px;
+  line-height:1.4;
+  color:#77819A;
+}
+.template-library-actions{
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  max-width:142px;
+}
