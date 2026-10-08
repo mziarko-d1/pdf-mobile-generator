@@ -351,6 +351,9 @@
           return columnTotal+String(column.title||'').length*1.2+String(column.body||'').length;
         },0);
       }
+      if(block.type==='whitecard'){
+        return total+String(block.title||'').length+String(block.bigText||'').length*1.4+String(block.smallText||block.body||'').length;
+      }
       return total+
         String(block.title||'').length*1.4+
         String(block.body||'').length;
@@ -425,6 +428,14 @@
         target.body=String((piece&&piece.body)||'');
       }
       out.columnCount=Math.max(1,Math.min(3,Number(out.columnCount)||columns.length||2));
+      return out;
+    }
+    if(slotType==='whitecard'){
+      if(typeof normalizeWhiteCard==='function') normalizeWhiteCard(out);
+      out.bigText=(piece&&piece.title)?String(piece.title):String(out.bigText||'');
+      out.smallText=String((piece&&piece.body)||'');
+      out.body=out.smallText;
+      out.semanticRole=slot.semanticRole||(piece&&piece.semanticRole)||'inherit';
       return out;
     }
     const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText'];
