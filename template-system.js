@@ -88,6 +88,9 @@
       }
       (screen.blocks||[]).forEach(function(block){
         block.id=uid('b');
+        if(block.type==='columns'&&Array.isArray(block.columns)){
+          block.columns.forEach(function(column){column.id=uid('col');});
+        }
       });
     });
     project.selected=project.screens&&project.screens[0]?project.screens[0].id:'';
