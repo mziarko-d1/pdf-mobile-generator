@@ -305,7 +305,7 @@
       ' · teksty '+(counts.text||0)+' · obrazy '+(counts.image||0)+'.';
 
     if(counts.outlined){
-      message+=' W '+counts.outlined+' pliku/plikuach nie znaleziono prawdziwego tekstu — prawdopodobnie został zamieniony na krzywe w Illustratorze.';
+      message+=' Brak edytowalnego tekstu w '+counts.outlined+' '+(counts.outlined===1?'pliku SVG':'plikach SVG')+' — prawdopodobnie został zamieniony na krzywe w Illustratorze.';
     }else{
       message+=' Teksty edytujesz w sekcji „Edytor aktywnego ekranu”.';
     }
@@ -519,10 +519,22 @@
     '<text id="footer" x="32" y="784" font-family="Libre Franklin, Arial" font-size="11" fill="#3F506E">SVG → generator → edycja → PDF</text>'+
     '</svg>';
 
+  const jumpButton=document.getElementById('svgJumpToEditor');
+  if(jumpButton){
+    jumpButton.addEventListener('click',function(){
+      const editor=document.getElementById('editor');
+      if(editor) editor.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+  }
+
   demoButton.addEventListener('click',function(){
     if(!confirm('Wczytać demo SVG jako nowy projekt?\n\nBieżące strony projektu zostaną zastąpione.')) return;
     try{
-      importSvgSource(demoSvg,'demo-doctor-one.svg');
+      const demoSvg2=demoSvg
+        .replace('Tytuł materiału','Druga strona SVG')
+        .replace('Edytuj mnie w panelu po lewej','To jest drugi artboard / plik SVG')
+        .replace('#F2CFBD','#ACB8E9');
+      applySvgProject([parseSvg(demoSvg),parseSvg(demoSvg2)],['demo-strona-1.svg','demo-strona-2.svg']);
     }catch(error){
       console.error(error);
       setStatus(error.message||'Nie udało się wczytać demo.','err');
