@@ -1,0 +1,7 @@
+window.DOCTOR_ONE_ADMIN_CONFIG={
+  githubClientId:"",
+  allowedLogin:"mziarko-d1",
+  repository:"mziarko-d1/pdf-mobile-generator",
+  repositoryId:"1397723735",
+  branch:"main"
+};
