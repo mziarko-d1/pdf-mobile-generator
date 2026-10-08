@@ -100,3 +100,102 @@
 .column-editor-preview{
   margin-bottom:8px;
 }
+
+
+/* White box v2 */
+.whitecard-v2{
+  background:#fff;
+  box-shadow:0 30px 40px rgba(174,184,229,.30)!important;
+  overflow:visible!important;
+  display:flex;
+  gap:16px;
+  align-items:flex-start;
+}
+.whitecard-v2.media-top{
+  flex-direction:column;
+}
+.whitecard-v2.media-left{
+  flex-direction:row;
+}
+.whitecard-v2.align-center{
+  text-align:center;
+}
+.whitecard-v2.align-center.media-top{
+  align-items:center;
+}
+.whitecard-copy{
+  min-width:0;
+  flex:1;
+}
+.whitecard-title{
+  font-size:12px;
+  line-height:1.35;
+  font-weight:700;
+  margin:0 0 8px;
+}
+.whitecard-big{
+  font-weight:800;
+  line-height:1.02;
+  letter-spacing:-.02em;
+  margin:0 0 10px;
+}
+.whitecard-big.size-s{font-size:22px}
+.whitecard-big.size-m{font-size:30px}
+.whitecard-big.size-l{font-size:40px}
+.whitecard-small{
+  font-size:12px;
+  line-height:1.5;
+}
+.whitecard-small p{
+  margin:0 0 7px;
+}
+.whitecard-small p:last-child{
+  margin-bottom:0;
+}
+.whitecard-media{
+  flex:0 0 auto;
+}
+.whitecard-icon{
+  width:44px;
+  height:44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  background:#F5F6FA;
+}
+.whitecard-icon svg{
+  width:26px;
+  height:26px;
+}
+.whitecard-image{
+  width:92px;
+  max-width:100%;
+}
+.whitecard-v2.media-top .whitecard-image{
+  width:100%;
+}
+.whitecard-image img{
+  display:block;
+  width:100%;
+  height:auto;
+  max-height:180px;
+  object-fit:cover;
+  border-radius:12px;
+}
+.whitecard-editor-colors{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-top:8px;
+}
+.whitecard-editor-colors>div{
+  min-width:0;
+}
+.whitecard-editor-colors input[type=color]{
+  width:100%;
+  height:34px;
+}
+.whitecard-editor-image{
+  margin-top:8px;
+}
