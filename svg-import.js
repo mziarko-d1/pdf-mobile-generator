@@ -160,13 +160,19 @@
 
   function svgDimensions(svg){
     const viewBox=String(svg.getAttribute('viewBox')||'').trim().split(/[ ,]+/).map(Number);
-    let width=parseLength(svg.getAttribute('width'));
-    let height=parseLength(svg.getAttribute('height'));
+    let width=null;
+    let height=null;
 
-    if((!width||!height)&&viewBox.length===4&&viewBox.every(Number.isFinite)){
-      width=width||Math.abs(viewBox[2]);
-      height=height||Math.abs(viewBox[3]);
+    // Illustrator often writes width/height in pt or mm. The viewBox is a safer
+    // representation of the actual artwork coordinate system, so prefer it.
+    if(viewBox.length===4&&viewBox.every(Number.isFinite)&&viewBox[2]&&viewBox[3]){
+      width=Math.abs(viewBox[2]);
+      height=Math.abs(viewBox[3]);
+    }else{
+      width=parseLength(svg.getAttribute('width'));
+      height=parseLength(svg.getAttribute('height'));
     }
+
     width=width||390;
     height=height||844;
 
@@ -184,6 +190,29 @@
     return {width:Math.round(width),height:Math.round(height)};
   }
 
+  function projectSizeForSvg(width,height){
+    const w=Number(width)||390;
+    const h=Number(height)||844;
+    const ratio=w/h;
+
+    if(Math.abs(w-390)<=3&&Math.abs(h-844)<=3){
+      return {format:'mobile',width:390,height:844,label:'Mobile'};
+    }
+
+    // Illustrator A4 artboards are commonly exported as ~595 × 842 pt.
+    // Normalize A4-looking SVGs to the generator's A4 canvas.
+    const a4Portrait=1/Math.sqrt(2);
+    const a4Landscape=Math.sqrt(2);
+    if(h>w&&Math.abs(ratio-a4Portrait)<0.025){
+      return {format:'a4p',width:794,height:1123,label:'A4 pion'};
+    }
+    if(w>h&&Math.abs(ratio-a4Landscape)<0.025){
+      return {format:'a4l',width:1123,height:794,label:'A4 poziom'};
+    }
+
+    return {format:'custom',width:Math.round(w),height:Math.round(h),label:'Własny'};
+  }
+
   function parseSvg(source){
     const doc=new DOMParser().parseFromString(String(source||''),'image/svg+xml');
     if(doc.querySelector('parsererror')) throw new Error('Nie mogę odczytać tego SVG. Sprawdź, czy plik jest poprawnym SVG.');
@@ -194,7 +223,17 @@
     const dimensions=svgDimensions(svg);
     const elements=describeSvg(svg);
     const serialized=new XMLSerializer().serializeToString(svg);
-    return {source:serialized,elements:elements,width:dimensions.width,height:dimensions.height};
+    const textCount=elements.filter(function(item){return item.type==='text';}).length;
+    const pathCount=svg.querySelectorAll('path').length;
+    return {
+      source:serialized,
+      elements:elements,
+      width:dimensions.width,
+      height:dimensions.height,
+      textCount:textCount,
+      pathCount:pathCount,
+      textOutlinedLikely:textCount===0&&pathCount>=4
+    };
   }
 
   function svgDataUrl(source){
@@ -206,12 +245,9 @@
     return screen&&screen.type==='svg'&&screen.svg?screen:null;
   }
 
-  function importSvgSource(source,name){
-    const parsed=parseSvg(source);
-    if(window.pdfMobileUndo&&window.pdfMobileUndo.checkpoint) window.pdfMobileUndo.checkpoint();
-
+  function makeSvgScreen(parsed,name){
     const cleanName=String(name||'Edytowalny SVG').replace(/\.svg$/i,'').replace(/[_-]+/g,' ').trim()||'Edytowalny SVG';
-    const screen={
+    return {
       id:uid('p'),
       type:'svg',
       title:'SVG · '+cleanName,
@@ -220,29 +256,81 @@
       svg:{
         source:parsed.source,
         elements:parsed.elements,
-        originalName:name||'demo.svg'
+        originalName:name||'demo.svg',
+        sourceWidth:parsed.width,
+        sourceHeight:parsed.height,
+        textOutlinedLikely:!!parsed.textOutlinedLikely
       }
     };
+  }
 
-    state.name=cleanName;
-    state.format='custom';
-    state.w=parsed.width;
-    state.h=parsed.height;
-    state.screens=[screen];
-    state.selected=screen.id;
+  function summarizeProject(parsedList){
+    return parsedList.reduce(function(acc,parsed){
+      (parsed.elements||[]).forEach(function(item){acc[item.type]=(acc[item.type]||0)+1;});
+      if(parsed.textOutlinedLikely) acc.outlined=(acc.outlined||0)+1;
+      return acc;
+    },{});
+  }
+
+  function applySvgProject(parsedList,names){
+    if(!parsedList.length) throw new Error('Nie znaleziono żadnych plików SVG.');
+    if(window.pdfMobileUndo&&window.pdfMobileUndo.checkpoint) window.pdfMobileUndo.checkpoint();
+
+    const first=parsedList[0];
+    const targetSize=projectSizeForSvg(first.width,first.height);
+    const screens=parsedList.map(function(parsed,index){
+      return makeSvgScreen(parsed,names[index]||('strona-'+(index+1)+'.svg'));
+    });
+
+    state.name=String((names[0]||'Edytowalny SVG')).replace(/\.svg$/i,'').replace(/[_-]+/g,' ').trim()||'Edytowalny SVG';
+    state.format=targetSize.format;
+    state.w=targetSize.width;
+    state.h=targetSize.height;
+    state.screens=screens;
+    state.selected=screens[0].id;
 
     render();
     const projectName=document.getElementById('projectName');
     if(projectName) projectName.value=state.name;
 
-    const counts=parsed.elements.reduce(function(acc,item){
-      acc[item.type]=(acc[item.type]||0)+1;
-      return acc;
-    },{});
-    setStatus(
-      'SVG gotowy: '+parsed.width+' × '+parsed.height+' px · teksty '+(counts.text||0)+' · obrazy '+(counts.image||0)+' · kształty '+(counts.shape||0)+'. Kliknij element po lewej w edytorze i zmień zawartość.',
-      'ok'
-    );
+    const counts=summarizeProject(parsedList);
+    const mismatched=parsedList.some(function(parsed){
+      const r1=parsed.width/parsed.height;
+      const r2=first.width/first.height;
+      return Math.abs(r1-r2)>0.02;
+    });
+
+    let message='SVG gotowy: '+screens.length+' '+(screens.length===1?'strona':'strony')+
+      ' · format '+targetSize.label+' '+targetSize.width+' × '+targetSize.height+
+      ' · teksty '+(counts.text||0)+' · obrazy '+(counts.image||0)+'.';
+
+    if(counts.outlined){
+      message+=' W '+counts.outlined+' pliku/plikuach nie znaleziono prawdziwego tekstu — prawdopodobnie został zamieniony na krzywe w Illustratorze.';
+    }else{
+      message+=' Teksty edytujesz w sekcji „Edytor aktywnego ekranu”.';
+    }
+    if(mismatched) message+=' Uwaga: pliki mają różne proporcje; są dopasowywane bez rozciągania.';
+
+    setStatus(message,counts.outlined?'err':'ok');
+  }
+
+  function importSvgSource(source,name){
+    const parsed=parseSvg(source);
+    applySvgProject([parsed],[name||'demo.svg']);
+  }
+
+  async function importSvgFiles(files){
+    const list=Array.from(files||[]);
+    if(!list.length) return;
+    const parsed=[];
+    const names=[];
+    for(let i=0;i<list.length;i++){
+      const file=list[i];
+      if(!/\.svg$/i.test(file.name)&&file.type!=='image/svg+xml') throw new Error('Wybierz pliki .svg.');
+      parsed.push(parseSvg(await file.text()));
+      names.push(file.name);
+    }
+    applySvgProject(parsed,names);
   }
 
   function parseScreenSvg(screen){
@@ -327,8 +415,14 @@
       return shapeEditor(item);
     }).join('');
 
+    const textItems=items.filter(function(item){return item.type==='text';});
+    const editNotice=textItems.length
+      ?'<div class="svg-editor-help">Tekst jest edytowalny poniżej. Zmiana pojawia się od razu w podglądzie.</div>'
+      :'<div class="svg-editor-warning"><strong>Brak edytowalnego tekstu.</strong> Ten SVG wygląda tak, jakby Illustrator zamienił litery na krzywe. Wyeksportuj SVG ponownie z opcją czcionki <strong>SVG</strong>, a nie „Konwertuj na kontury”.</div>';
+
     editor.innerHTML=
-      '<div class="svg-editor-banner"><strong>Edytowalny SVG</strong><span>'+html(screen.svg.originalName||'SVG')+' · '+state.w+' × '+state.h+' px</span></div>'+
+      '<div class="svg-editor-banner"><strong>Edytowalny SVG</strong><span>'+html(screen.svg.originalName||'SVG')+' · docelowo '+state.w+' × '+state.h+' px</span></div>'+
+      editNotice+
       (items.length?body:'<div class="brand-note">Nie znaleziono obsługiwanych elementów do edycji. Sam wygląd SVG nadal zostaje zachowany.</div>');
 
     editor.querySelectorAll('[data-svg-text]').forEach(function(input){
@@ -394,13 +488,12 @@
   renderEditor=renderSvgEditor;
 
   fileInput.addEventListener('change',async function(){
-    const file=fileInput.files&&fileInput.files[0];
-    if(!file) return;
+    const files=fileInput.files;
+    if(!files||!files.length) return;
     try{
-      if(!/\.svg$/i.test(file.name)&&file.type!=='image/svg+xml') throw new Error('Wybierz plik .svg.');
-      if(!confirm('Zaimportować SVG jako nowy edytowalny projekt?\n\nBieżące strony projektu zostaną zastąpione.')) return;
+      if(!confirm('Zaimportować '+files.length+' '+(files.length===1?'plik SVG':'pliki SVG')+' jako nowy edytowalny projekt?\n\nKażdy plik stanie się osobną stroną. Bieżące strony projektu zostaną zastąpione.')) return;
       setStatus('Czytam SVG…','');
-      importSvgSource(await file.text(),file.name);
+      await importSvgFiles(files);
     }catch(error){
       console.error(error);
       setStatus(error.message||'Nie udało się zaimportować SVG.','err');
@@ -438,6 +531,7 @@
 
   window.DoctorOneSvgImport={
     importSource:importSvgSource,
+    importFiles:importSvgFiles,
     parse:parseSvg
   };
 })();
