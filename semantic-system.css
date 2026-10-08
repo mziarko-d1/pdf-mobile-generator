@@ -395,3 +395,72 @@
   color:var(--body)!important;
   font-weight:700;
 }
+
+
+/* Template library v1 */
+#templateLibraryCard{
+  border:1px solid #E5E8F0;
+}
+.template-library-intro{
+  margin:0 0 9px;
+  font-size:9px;
+  line-height:1.4;
+  color:#77819A;
+}
+.template-current-format{
+  margin-top:6px;
+  font-size:8px;
+  line-height:1.35;
+  color:#77819A;
+}
+.template-library-list{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin-top:8px;
+}
+.template-library-empty{
+  padding:9px 10px;
+  border-radius:10px;
+  background:#F7F8FB;
+  color:#77819A;
+  font-size:9px;
+  line-height:1.4;
+}
+.template-library-item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  align-items:center;
+  padding:9px 10px;
+  border:1px solid #E7E9F0;
+  border-radius:11px;
+  background:#F7F8FB;
+}
+.template-library-copy{
+  min-width:0;
+}
+.template-library-name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+  line-height:1.25;
+  font-weight:800;
+  color:#1D1E3C;
+}
+.template-library-meta{
+  margin-top:3px;
+  font-size:8px;
+  line-height:1.3;
+  color:#77819A;
+}
+.template-library-actions{
+  display:flex;
+  gap:5px;
+  flex:0 0 auto;
+}
+.template-library-actions button{
+  padding:6px 8px!important;
+  font-size:9px!important;
+}
