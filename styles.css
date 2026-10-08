@@ -203,3 +203,64 @@
 .svg-editor-help{background:#ECFBF0;color:#244B31}
 .svg-editor-warning{background:#FFF3E8;color:#7A4717}
 .svg-editor-warning strong{color:#6B3710}
+
+
+.svg-import-rule{
+  margin:9px 0 0;
+  padding:8px 9px;
+  border-radius:10px;
+  background:#F7F8FB;
+  color:#59637C;
+  font-size:9px;
+  line-height:1.4;
+}
+.svg-quick-editor{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #E3E6EF;
+}
+.svg-quick-head{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  margin-bottom:8px;
+}
+.svg-quick-head strong{
+  font-size:11px;
+  color:#1D1E3C;
+}
+.svg-quick-head span{
+  font-size:9px;
+  line-height:1.35;
+  color:#59637C;
+}
+.svg-page-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:0 0 8px;
+}
+.svg-editor-item{
+  transition:outline-color .2s ease,box-shadow .2s ease;
+}
+.svg-editor-item.is-focused{
+  outline:2px solid #9AABDB;
+  outline-offset:2px;
+  box-shadow:0 0 0 4px rgba(154,171,219,.12);
+}
+.svg-editable-node{
+  cursor:pointer;
+}
+.svg-editable-node:hover{
+  opacity:.82;
+}
+.svg-page-inner{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#fff;
+}
+.svg-page-inner>svg{
+  max-width:100%;
+  max-height:100%;
+}
