@@ -20,10 +20,48 @@ function newBlock(type='paragraph'){
     warning:{title:'Uważaj',body:'Tutaj wpisz ostrzeżenie.'},
     remember:{title:'Pamiętaj',body:'Tutaj wpisz informację do zapamiętania.'},
     additional:{title:'Dodatkowo',body:'Tutaj wpisz dodatkową informację.'},
-    whitecard:{title:'Nagłówek',body:'Tutaj wpisz treść.'}
+    whitecard:{title:'',body:'Krótki opis lub doprecyzowanie.'}
   };
   const d=defaults[type]||defaults.paragraph;
-  return {id:uid('b'),type,title:d.title,body:d.body,showIcon:false,icon:'check'};
+  const block={id:uid('b'),type,title:d.title,body:d.body,showIcon:false,icon:'check'};
+  if(type==='whitecard'){
+    Object.assign(block,{
+      bigText:'92%',
+      smallText:d.body,
+      mediaType:'none',
+      mediaPosition:'top',
+      mediaAlign:'left',
+      mediaSrc:'',
+      mediaAlt:'Obrazek',
+      icon:'check',
+      iconColor:'#3F506E',
+      titleColor:'#1D1E3C',
+      bigTextColor:'#3F506E',
+      smallTextColor:'#3F506E',
+      bigTextSize:'m'
+    });
+  }
+  return block;
+}
+function normalizeWhiteCard(block){
+  if(!block||block.type!=='whitecard') return block;
+  if(block.title==null) block.title='';
+  if(block.body==null) block.body='';
+  if(block.bigText==null) block.bigText='';
+  if(block.smallText==null) block.smallText=String(block.body||'');
+  block.body=String(block.smallText||'');
+  if(!['none','icon','image'].includes(block.mediaType)) block.mediaType='none';
+  if(!['top','left'].includes(block.mediaPosition)) block.mediaPosition='top';
+  if(!['left','center'].includes(block.mediaAlign)) block.mediaAlign='left';
+  if(!['s','m','l'].includes(block.bigTextSize)) block.bigTextSize='m';
+  if(!['check','info'].includes(block.icon)) block.icon='check';
+  block.mediaSrc=block.mediaSrc||'';
+  block.mediaAlt=block.mediaAlt||'Obrazek';
+  block.iconColor=/^#[0-9a-f]{6}$/i.test(String(block.iconColor||''))?block.iconColor:'#3F506E';
+  block.titleColor=/^#[0-9a-f]{6}$/i.test(String(block.titleColor||''))?block.titleColor:'#1D1E3C';
+  block.bigTextColor=/^#[0-9a-f]{6}$/i.test(String(block.bigTextColor||''))?block.bigTextColor:'#3F506E';
+  block.smallTextColor=/^#[0-9a-f]{6}$/i.test(String(block.smallTextColor||''))?block.smallTextColor:'#3F506E';
+  return block;
 }
 function newColumnsBlock(count=2){
   const columnCount=Math.max(1,Math.min(3,Number(count)||2));
@@ -108,9 +146,20 @@ function blockHtml(b){
   }
   if(b.type==='image'){const w=Math.max(20,Math.min(100,Number(b.width)||100));return '<div class="topic image-topic" draggable="true" data-block-id="'+b.id+'"><div class="image-block" style="width:'+w+'%"><img src="'+b.src+'" alt="'+esc(b.alt||'Obrazek')+'"></div></div>'}
   if(b.type==='imageText'){const w=Math.max(25,Math.min(70,Number(b.width)||45)),side=b.side==='right'?'right':'left';return '<div class="topic image-text-topic" draggable="true" data-block-id="'+b.id+'"><div class="image-text-block side-'+side+'" style="--image-col:'+w+'%"><div class="image-text-media"><img src="'+b.src+'" alt="'+esc(b.alt||'Obrazek')+'"></div><div class="image-text-copy"><h4 class="topic-title">'+esc(b.title||'Nagłówek')+'</h4><div class="topic-body">'+bodyHtml(b.body||'','paragraph')+'</div></div></div></div>'}
-  const cls={important:'important',warning:'warning',remember:'remember',additional:'additional',whitecard:'whitecard'}[b.type]||'';
-  const inline=b.type==='whitecard'?' style="background:#fff;box-shadow:0 30px 40px rgba(174,184,229,.30)!important;overflow:visible!important"':'';
-  const box='<div class="'+(cls?'box '+cls:'')+'"'+inline+'><h4 class="topic-title">'+esc(b.title||'')+'</h4><div class="topic-body">'+bodyHtml(b.body||'',b.type)+'</div></div>';
+  if(b.type==='whitecard'){
+    normalizeWhiteCard(b);
+    const media=b.mediaType==='icon'
+      ?'<div class="whitecard-media whitecard-icon" style="color:'+b.iconColor+'">'+(ICONS[b.icon]||ICONS.check)+'</div>'
+      :(b.mediaType==='image'&&b.mediaSrc
+        ?'<div class="whitecard-media whitecard-image"><img src="'+b.mediaSrc+'" alt="'+esc(b.mediaAlt||'Obrazek')+'"></div>'
+        :'');
+    const title=b.title?'<div class="whitecard-title" style="color:'+b.titleColor+'">'+esc(b.title)+'</div>':'';
+    const big=b.bigText?'<div class="whitecard-big size-'+b.bigTextSize+'" style="color:'+b.bigTextColor+'">'+esc(b.bigText)+'</div>':'';
+    const small=b.smallText?'<div class="whitecard-small" style="color:'+b.smallTextColor+'">'+bodyHtml(b.smallText,'paragraph')+'</div>':'';
+    return '<div class="topic whitecard-topic" draggable="true" data-block-id="'+b.id+'"><div class="box whitecard whitecard-v2 media-'+b.mediaPosition+' align-'+b.mediaAlign+'">'+media+'<div class="whitecard-copy">'+title+big+small+'</div></div></div>';
+  }
+  const cls={important:'important',warning:'warning',remember:'remember',additional:'additional'}[b.type]||'';
+  const box='<div class="'+(cls?'box '+cls:'')+'"><h4 class="topic-title">'+esc(b.title||'')+'</h4><div class="topic-body">'+bodyHtml(b.body||'',b.type)+'</div></div>';
   return '<div class="topic '+(b.showIcon?'has-icon':'')+'" draggable="true" data-block-id="'+b.id+'">'+(b.showIcon?'<div class="topic-icon">'+(ICONS[b.icon]||ICONS.check)+'</div>':'')+'<div>'+box+'</div></div>';
 }
 function renderPreview(){
@@ -160,6 +209,26 @@ function blockEditorHtml(b,i){
       return '<div class="column-editor-card"><div class="column-editor-head"><strong>Kolumna '+(index+1)+'</strong></div><label>Zawartość</label><select data-colkind="'+key+'"><option value="text" '+(col.kind!=='image'?'selected':'')+'>Tekst</option><option value="image" '+(col.kind==='image'?'selected':'')+'>Obraz</option></select>'+body+'</div>';
     }).join('');
     return '<div class="block-card columns-editor"><div class="block-head"><h4>Blok '+(i+1)+' · Kolumny</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><label>Liczba kolumn</label><select data-column-count="'+b.id+'"><option value="1" '+(b.columnCount===1?'selected':'')+'>1 kolumna</option><option value="2" '+(b.columnCount===2?'selected':'')+'>2 kolumny</option><option value="3" '+(b.columnCount===3?'selected':'')+'>3 kolumny</option></select><div class="column-editor-grid">'+columns+'</div></div>';
+  }
+  if(b.type==='whitecard'){
+    normalizeWhiteCard(b);
+    const mediaEditor=b.mediaType==='icon'
+      ?'<label>Ikona</label><select data-white-icon="'+b.id+'"><option value="check" '+(b.icon==='check'?'selected':'')+'>Check</option><option value="info" '+(b.icon==='info'?'selected':'')+'>Info</option></select><label>Kolor ikony</label><input type="color" data-white-icon-color="'+b.id+'" value="'+b.iconColor+'">'
+      :(b.mediaType==='image'
+        ?(b.mediaSrc?'<img class="image-editor-preview whitecard-editor-image" src="'+b.mediaSrc+'">':'<div class="column-editor-empty">Brak obrazka</div>')+'<label>Obrazek</label><input type="file" accept="image/*" data-white-image="'+b.id+'">'
+        :'');
+    return '<div class="block-card whitecard-editor">'+
+      '<div class="block-head"><h4>Blok '+(i+1)+' · Biały box</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div>'+
+      '<label>Tytuł <span class="muted">opcjonalny</span></label><input data-white-title="'+b.id+'" value="'+esc(b.title||'')+'">'+
+      '<label>Tekst duży</label><input data-white-big="'+b.id+'" value="'+esc(b.bigText||'')+'">'+
+      '<label>Rozmiar dużego tekstu</label><select data-white-size="'+b.id+'"><option value="s" '+(b.bigTextSize==='s'?'selected':'')+'>Mały</option><option value="m" '+(b.bigTextSize==='m'?'selected':'')+'>Standard</option><option value="l" '+(b.bigTextSize==='l'?'selected':'')+'>Duży</option></select>'+
+      '<label>Tekst mały</label><textarea data-white-small="'+b.id+'">'+esc(b.smallText||'')+'</textarea>'+
+      '<div class="whitecard-editor-colors"><div><label>Kolor tytułu</label><input type="color" data-white-title-color="'+b.id+'" value="'+b.titleColor+'"></div><div><label>Kolor dużego tekstu</label><input type="color" data-white-big-color="'+b.id+'" value="'+b.bigTextColor+'"></div><div><label>Kolor małego tekstu</label><input type="color" data-white-small-color="'+b.id+'" value="'+b.smallTextColor+'"></div></div>'+
+      '<label>Media</label><select data-white-media="'+b.id+'"><option value="none" '+(b.mediaType==='none'?'selected':'')+'>Brak</option><option value="icon" '+(b.mediaType==='icon'?'selected':'')+'>Ikona</option><option value="image" '+(b.mediaType==='image'?'selected':'')+'>Obrazek</option></select>'+
+      (b.mediaType!=='none'?'<label>Pozycja media</label><select data-white-position="'+b.id+'"><option value="top" '+(b.mediaPosition==='top'?'selected':'')+'>Nad tekstem</option><option value="left" '+(b.mediaPosition==='left'?'selected':'')+'>Po lewej</option></select>':'')+
+      mediaEditor+
+      '<label>Wyrównanie treści</label><select data-white-align="'+b.id+'"><option value="left" '+(b.mediaAlign==='left'?'selected':'')+'>Do lewej</option><option value="center" '+(b.mediaAlign==='center'?'selected':'')+'>Wyśrodkowane</option></select>'+
+      '</div>';
   }
   if(b.type==='image'){
     const w=Math.max(20,Math.min(100,Number(b.width)||100));
@@ -231,6 +300,19 @@ function bindBlockEditors(p){
       renderPreview();
     };
   });
+  document.querySelectorAll('[data-white-title]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteTitle);if(b){normalizeWhiteCard(b);b.title=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-big]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteBig);if(b){normalizeWhiteCard(b);b.bigText=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-small]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteSmall);if(b){normalizeWhiteCard(b);b.smallText=x.value;b.body=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-size]').forEach(x=>x.onchange=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteSize);if(b){normalizeWhiteCard(b);b.bigTextSize=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-media]').forEach(x=>x.onchange=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteMedia);if(b){normalizeWhiteCard(b);b.mediaType=x.value;renderEditor();renderPreview()}});
+  document.querySelectorAll('[data-white-position]').forEach(x=>x.onchange=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whitePosition);if(b){normalizeWhiteCard(b);b.mediaPosition=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-align]').forEach(x=>x.onchange=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteAlign);if(b){normalizeWhiteCard(b);b.mediaAlign=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-icon]').forEach(x=>x.onchange=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteIcon);if(b){normalizeWhiteCard(b);b.icon=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-icon-color]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteIconColor);if(b){normalizeWhiteCard(b);b.iconColor=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-title-color]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteTitleColor);if(b){normalizeWhiteCard(b);b.titleColor=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-big-color]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteBigColor);if(b){normalizeWhiteCard(b);b.bigTextColor=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-small-color]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.whiteSmallColor);if(b){normalizeWhiteCard(b);b.smallTextColor=x.value;renderPreview()}});
+  document.querySelectorAll('[data-white-image]').forEach(x=>x.onchange=async()=>{const file=x.files&&x.files[0];if(!file)return;const b=p.blocks.find(z=>z.id===x.dataset.whiteImage);if(!b)return;normalizeWhiteCard(b);b.mediaSrc=await readImageFile(file);b.mediaAlt=file.name||'Obrazek';renderEditor();renderPreview()});
   document.querySelectorAll('[data-r]').forEach(x=>x.onclick=()=>{p.blocks=p.blocks.filter(b=>b.id!==x.dataset.r);renderEditor();renderPreview()});
   document.querySelectorAll('[data-imgwidth]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.imgwidth);if(!b)return;b.width=Number(x.value);const l=document.querySelector('[data-imgwidth-label="'+b.id+'"]');if(l)l.textContent=b.width+'%';renderPreview()});
   document.querySelectorAll('[data-imgtextwidth]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.imgtextwidth);if(!b)return;b.width=Number(x.value);const l=document.querySelector('[data-imgtextwidth-label="'+b.id+'"]');if(l)l.textContent=b.width+'%';renderPreview()});
