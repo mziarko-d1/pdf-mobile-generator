@@ -107,7 +107,7 @@
   document.addEventListener('change',function(e){
     const t=e.target;
     if(!t||!t.matches) return;
-    if(t.matches('#format,#doctorPreset,#customPreset,[data-b][data-k="type"],[data-b][data-k="showIcon"],[data-imgside],[data-column-count],[data-colkind],[data-colimage],[data-white-size],[data-white-media],[data-white-position],[data-white-align],[data-white-icon],[data-white-image],[data-semantic-block],#semanticSlideStyle,#semanticAutoColors')){
+    if(t.matches('#format,#doctorPreset,#customPreset,[data-b][data-k="type"],[data-b][data-k="showIcon"],[data-imgside],[data-column-count],[data-colkind],[data-colimage],[data-white-size],[data-white-media],[data-white-position],[data-white-align],[data-white-icon],[data-white-image],#pageFooterShowNumber,#pageFooterNumberMode,#pageFooterShowCover,[data-semantic-block],#semanticSlideStyle,#semanticAutoColors')){
       checkpoint();
     }
   },true);
