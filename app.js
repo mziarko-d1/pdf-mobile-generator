@@ -96,9 +96,54 @@ function normalizeColumnsBlock(block){
   });
   return block;
 }
+function defaultPageFooter(){
+  return {
+    enabled:false,
+    text:'',
+    showPageNumber:true,
+    showOnCover:false,
+    numberMode:'compact'
+  };
+}
+function normalizePageFooter(){
+  if(!state.pageFooter||typeof state.pageFooter!=='object') state.pageFooter=defaultPageFooter();
+  const f=state.pageFooter;
+  f.enabled=!!f.enabled;
+  f.text=String(f.text||'');
+  f.showPageNumber=f.showPageNumber!==false;
+  f.showOnCover=!!f.showOnCover;
+  if(!['compact','label','page'].includes(f.numberMode)) f.numberMode='compact';
+  return f;
+}
+function pageFooterHtml(screen,index){
+  const f=normalizePageFooter();
+  if(!f.enabled) return '';
+  if(screen.type==='cover'&&!f.showOnCover) return '';
+
+  const eligible=state.screens.filter(function(item){
+    return f.showOnCover||item.type!=='cover';
+  });
+  const pageIndex=eligible.findIndex(function(item){return item.id===screen.id;});
+  const currentNumber=Math.max(1,pageIndex+1);
+  const total=Math.max(1,eligible.length);
+  let number='';
+  if(f.showPageNumber){
+    if(f.numberMode==='label') number='Strona '+currentNumber+' / '+total;
+    else if(f.numberMode==='page') number='Strona '+currentNumber;
+    else number=currentNumber+' / '+total;
+  }
+  const label=(f.text||state.name||'Materiał').trim();
+  return '<div class="page-footer">'+
+    '<div class="page-footer-rule"></div>'+
+    '<div class="page-footer-row">'+
+      '<span class="page-footer-label">'+esc(label)+'</span>'+
+      (number?'<span class="page-footer-number">'+esc(number)+'</span>':'')+
+    '</div>'+
+  '</div>';
+}
 function coverScreen(){return{id:uid('p'),type:'cover',heading:'Tytuł materiału',blocks:[]}}
 function contentScreen(){return{id:uid('p'),type:'content',title:'Tytuł ekranu',intro:'Krótki wstęp do treści.',blocks:[newBlock('paragraph')]}}
-function initialState(){const c=coverScreen(),p=contentScreen();return{name:'Nowy materiał',w:390,h:844,format:'mobile',preset:'doctor',palette:{...doctorPalette},template:'',materialLogo:'',screens:[c,p],selected:c.id}}
+function initialState(){const c=coverScreen(),p=contentScreen();return{name:'Nowy materiał',w:390,h:844,format:'mobile',preset:'doctor',palette:{...doctorPalette},template:'',materialLogo:'',pageFooter:defaultPageFooter(),screens:[c,p],selected:c.id}}
 let state=initialState();
 let pendingImageData='',pendingImageName='',pendingImageTextData='',pendingImageTextName='';
 
@@ -169,9 +214,15 @@ function renderPreview(){
     const pageStyle='width:'+state.w+'px;height:'+state.h+'px;transform:scale('+sc+');background:'+state.palette.bg+';--ink:'+state.palette.ink+';--body:'+state.palette.body+';--important:'+state.palette.important+';--warning:'+state.palette.warning+';--remember:'+state.palette.remember+';--additional:'+state.palette.additional+';';
     const baseBg=p.pdfBackground||state.template||'';
     const bg=baseBg?'<div class="page-bg" style="background-image:url(\''+baseBg+'\')"></div>':'';
-    if(p.type==='cover')return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page cover '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" style="'+pageStyle+'">'+bg+'<div class="page-inner"><div class="material-logo">'+(state.materialLogo?'<img src="'+state.materialLogo+'" alt="logo">':'<span class="muted">Dodaj logo</span>')+'</div><div class="cover-title">'+esc(p.heading||'')+'</div></div></section></div></div>';
+    if(p.type==='cover'){
+      const footer=pageFooterHtml(p,i);
+      const footerClass=footer?' has-page-footer':'';
+      return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page cover'+footerClass+' '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" style="'+pageStyle+'">'+bg+'<div class="page-inner"><div class="material-logo">'+(state.materialLogo?'<img src="'+state.materialLogo+'" alt="logo">':'<span class="muted">Dodaj logo</span>')+'</div><div class="cover-title">'+esc(p.heading||'')+'</div></div>'+footer+'</section></div></div>';
+    }
     const blocks=(p.blocks||[]).map(blockHtml).join('');
-    return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" data-drop-page="'+p.id+'" style="'+pageStyle+'">'+bg+'<div class="page-inner">'+(p.pdfBackground?'':'<h3 class="page-title">'+esc(p.title||'')+'</h3><p class="page-intro">'+esc(p.intro||'')+'</p>')+'<div class="'+(p.pdfBackground?'overlay-list':'topic-list')+'">'+blocks+'</div></div></section></div></div>';
+    const footer=pageFooterHtml(p,i);
+    const footerClass=footer?' has-page-footer':'';
+    return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page'+footerClass+' '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" data-drop-page="'+p.id+'" style="'+pageStyle+'">'+bg+'<div class="page-inner">'+(p.pdfBackground?'':'<h3 class="page-title">'+esc(p.title||'')+'</h3><p class="page-intro">'+esc(p.intro||'')+'</p>')+'<div class="'+(p.pdfBackground?'overlay-list':'topic-list')+'">'+blocks+'</div></div>'+footer+'</section></div></div>';
   }).join('');
   bindPreviewDnD();
 }
@@ -322,7 +373,25 @@ function bindBlockEditors(p){
   document.querySelectorAll('[data-imgbody]').forEach(x=>x.oninput=()=>{const b=p.blocks.find(z=>z.id===x.dataset.imgbody);if(b){b.body=x.value;renderPreview()}});
   document.querySelectorAll('[data-b]').forEach(x=>{const h=()=>{const b=p.blocks.find(z=>z.id===x.dataset.b);if(!b)return;const k=x.dataset.k;b[k]=x.type==='checkbox'?x.checked:x.value;if(k==='type'||k==='showIcon')renderEditor();renderPreview()};if(x.tagName==='TEXTAREA'||(x.tagName==='INPUT'&&x.type!=='checkbox'))x.oninput=h;else x.onchange=h});
 }
-function render(){applyTheme();$('projectName').value=state.name||'Nowy materiał';$('format').value=state.format||'mobile';$('customW').value=state.w;$('customH').value=state.h;$('customSize').classList.toggle('hidden',state.format!=='custom');renderScreenList();renderEditor();renderPreview();updateFormatMeta()}
+function syncPageFooterControls(){
+  const f=normalizePageFooter();
+  const panel=$('pageFooterEditor');
+  const toggle=$('pageFooterToggle');
+  if(panel) panel.classList.toggle('hidden',!f.enabled);
+  if(toggle){
+    toggle.classList.toggle('ready',f.enabled);
+    toggle.innerHTML=f.enabled?'Stopka strony<small>włączona · linia + opis + numer</small>':'Stopka strony<small>linia + opis + numer strony</small>';
+  }
+  const text=$('pageFooterText');
+  const showNumber=$('pageFooterShowNumber');
+  const mode=$('pageFooterNumberMode');
+  const cover=$('pageFooterShowCover');
+  if(text) text.value=f.text;
+  if(showNumber) showNumber.checked=f.showPageNumber;
+  if(mode) mode.value=f.numberMode;
+  if(cover) cover.checked=f.showOnCover;
+}
+function render(){normalizePageFooter();applyTheme();$('projectName').value=state.name||'Nowy materiał';$('format').value=state.format||'mobile';$('customW').value=state.w;$('customH').value=state.h;$('customSize').classList.toggle('hidden',state.format!=='custom');renderScreenList();renderEditor();renderPreview();updateFormatMeta();syncPageFooterControls()}
 function removeScreen(id){if(state.screens.length<=1){alert('Projekt musi mieć przynajmniej jeden ekran.');return}state.screens=state.screens.filter(s=>s.id!==id);if(!state.screens.some(s=>s.id===state.selected))state.selected=state.screens[0].id;render()}
 function movePage(sourceId,targetId){if(sourceId===targetId)return;let from=state.screens.findIndex(s=>s.id===sourceId),to=state.screens.findIndex(s=>s.id===targetId);if(from<0||to<0)return;const [item]=state.screens.splice(from,1);if(from<to)to--;state.screens.splice(to,0,item);render()}
 function findScreenAndBlock(blockId){for(const s of state.screens){const i=(s.blocks||[]).findIndex(b=>b.id===blockId);if(i>=0)return{screen:s,index:i,block:s.blocks[i]}}return null}
@@ -388,7 +457,7 @@ async function importDocx(file){$('importStatus').textContent='Otwieram DOCX…'
 function readImageFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 async function templateFromFile(file){if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,page=await pdf.getPage(1);return await renderPdfPageToDataUrl(page,state.w,state.h)}return await readImageFile(file)}
 
-$('projectName').oninput=e=>{state.name=e.target.value};
+$('projectName').oninput=e=>{state.name=e.target.value;const f=normalizePageFooter();if(f.enabled&&!f.text)renderPreview()};
 $('saveProject').onclick=()=>saveProject();$('loadProject').onclick=()=>loadProject($('savedProjects').value);$('deleteProject').onclick=()=>deleteProject($('savedProjects').value);
 $('newProject').onclick=()=>{if(!confirm('Utworzyć nowy projekt?\n\nNiezapisane zmiany zostaną utracone.'))return;state=initialState();render();$('saveStatus').className='status';$('saveStatus').textContent='Nowy projekt.'};
 $('format').onchange=e=>setFormat(e.target.value);$('customW').oninput=()=>{if(state.format==='custom')setFormat('custom')};$('customH').oninput=()=>{if(state.format==='custom')setFormat('custom')};
@@ -397,6 +466,17 @@ $('doctorPreset').onclick=()=>{state.preset='doctor';state.palette={...doctorPal
 $('addCover').onclick=()=>{const p=coverScreen();state.screens.push(p);state.selected=p.id;render()};$('addContent').onclick=()=>{const p=contentScreen();state.screens.push(p);state.selected=p.id;render()};
 $('materialLogo').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.materialLogo=await readImageFile(f);renderPreview()};
 $('templateUpload').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.template=await templateFromFile(f);renderPreview()};$('removeTemplate').onclick=()=>{state.template='';renderPreview()};
+$('pageFooterToggle').onclick=()=>{
+  const f=normalizePageFooter();
+  if(window.pdfMobileUndo&&window.pdfMobileUndo.checkpoint) window.pdfMobileUndo.checkpoint();
+  f.enabled=!f.enabled;
+  syncPageFooterControls();
+  renderPreview();
+};
+$('pageFooterText').oninput=e=>{const f=normalizePageFooter();f.text=e.target.value;renderPreview()};
+$('pageFooterShowNumber').onchange=e=>{const f=normalizePageFooter();f.showPageNumber=e.target.checked;renderPreview();syncPageFooterControls()};
+$('pageFooterNumberMode').onchange=e=>{const f=normalizePageFooter();f.numberMode=e.target.value;renderPreview()};
+$('pageFooterShowCover').onchange=e=>{const f=normalizePageFooter();f.showOnCover=e.target.checked;renderPreview()};
 $('imagePaletteButton').onclick=()=>$('imageElementUpload').click();$('imageTextPaletteButton').onclick=()=>$('imageTextElementUpload').click();
 $('imageElementUpload').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingImageData=await readImageFile(f);pendingImageName=f.name;const b=$('imagePaletteButton');b.draggable=true;b.classList.add('ready');b.innerHTML='Obrazek<small>gotowy — przeciągnij</small><img class="palette-thumb" src="'+pendingImageData+'">'};
 $('imageTextElementUpload').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingImageTextData=await readImageFile(f);pendingImageTextName=f.name;const b=$('imageTextPaletteButton');b.draggable=true;b.classList.add('ready');b.innerHTML='Obrazek + tekst<small>gotowy — przeciągnij</small><img class="palette-thumb" src="'+pendingImageTextData+'">'};
