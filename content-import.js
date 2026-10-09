@@ -405,7 +405,8 @@
       preset:state.preset,
       palette:cloneImportValue(state.palette||{}),
       template:state.template||'',
-      materialLogo:state.materialLogo||''
+      materialLogo:state.materialLogo||'',
+      pageFooter:cloneImportValue(state.pageFooter||{})
     };
   }
 
@@ -790,6 +791,7 @@
         state.palette=cloneImportValue(layoutBlueprint.palette||{});
         state.template=layoutBlueprint.template;
         state.materialLogo=layoutBlueprint.materialLogo;
+        state.pageFooter=cloneImportValue(layoutBlueprint.pageFooter||{});
 
         setStatus('Wypełniam wybrany szablon treścią i zachowuję jego format, kolory oraz układ…','');
         screens=await buildScreensFromBlueprint(parsed,role,layoutBlueprint);
