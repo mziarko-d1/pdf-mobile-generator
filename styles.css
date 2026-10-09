@@ -200,3 +200,73 @@
 .whitecard-editor-image{
   margin-top:8px;
 }
+
+
+/* Page footer */
+.page.has-page-footer .page-inner{
+  padding-bottom:72px;
+}
+.page-footer{
+  position:absolute;
+  left:24px;
+  right:24px;
+  bottom:22px;
+  z-index:3;
+  color:var(--body);
+  font-size:9px;
+  line-height:1.35;
+}
+.page-footer-rule{
+  width:100%;
+  height:1px;
+  background:currentColor;
+  opacity:.28;
+  margin-bottom:8px;
+}
+.page-footer-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.page-footer-label{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.page-footer-number{
+  flex:0 0 auto;
+  font-weight:700;
+}
+.page-footer-editor{
+  grid-column:1/-1;
+  padding:11px;
+  margin-top:2px;
+  border:1px solid #E3E6EF;
+  border-radius:13px;
+  background:#F7F8FB;
+}
+.page-footer-editor-head{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  margin-bottom:8px;
+}
+.page-footer-editor-head strong{
+  font-size:10px;
+  color:#1D1E3C;
+}
+.page-footer-editor-head span{
+  font-size:9px;
+  color:#59637C;
+}
+.page-footer-editor .muted{
+  margin:8px 0 0;
+  font-size:9px;
+  line-height:1.35;
+}
+#pageFooterToggle.ready{
+  border-color:#9AABDB;
+  background:#F7F8FB;
+}
