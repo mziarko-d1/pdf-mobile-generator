@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261008-5">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
+  <link rel="stylesheet" href="styles.css?v=20261009-1">\n  <link rel="stylesheet" href="semantic-system.css?v=20261008-3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -206,9 +206,27 @@
         <button class="palette-item" draggable="true" data-new-type="warning">Uważaj<small>box ostrzegawczy</small></button>
         <button class="palette-item" draggable="true" data-new-type="remember">Pamiętaj<small>box z obrysem</small></button>
         <button class="palette-item" draggable="true" data-new-type="whitecard">Box ze zdjęciem<small>ikona / obraz · tekst duży + mały</small></button>
+        <button id="pageFooterToggle" class="palette-item" type="button">Stopka strony<small>linia + opis + numer strony</small></button>
         <button id="imagePaletteButton" class="palette-item" type="button" data-new-type="image">Obrazek<small>kliknij, aby wgrać</small></button>
         <button id="imageTextPaletteButton" class="palette-item" type="button" data-new-type="imageText">Obrazek + tekst<small>kliknij, aby wgrać</small></button>
         <button class="palette-item columns-palette" draggable="true" data-new-type="columns">Kolumny<small>1 / 2 / 3 · tekst lub obraz</small></button>
+      </div>
+      <div id="pageFooterEditor" class="page-footer-editor hidden">
+        <div class="page-footer-editor-head">
+          <strong>Stopka na wszystkich stronach</strong>
+          <span>linia + opis + numeracja</span>
+        </div>
+        <label>Opis materiału</label>
+        <input id="pageFooterText" type="text" placeholder="puste = nazwa projektu">
+        <label class="checkbox"><input id="pageFooterShowNumber" type="checkbox" checked> Pokaż numer strony</label>
+        <label>Format numeracji</label>
+        <select id="pageFooterNumberMode">
+          <option value="compact">1 / 6</option>
+          <option value="label">Strona 1 / 6</option>
+          <option value="page">Strona 1</option>
+        </select>
+        <label class="checkbox"><input id="pageFooterShowCover" type="checkbox"> Pokaż także na okładce</label>
+        <p class="muted">Domyślnie stopka pojawia się na wszystkich stronach treści. Jeśli opis zostawisz pusty, użyje nazwy projektu.</p>
       </div>
       <input id="imageElementUpload" type="file" accept="image/*" hidden>
       <input id="imageTextElementUpload" type="file" accept="image/*" hidden>
@@ -235,7 +253,7 @@
     <div id="canvas" class="canvas"></div>
   </main>
 </div>
-<script src="app.js?v=20261008-6"></script>\n<script src="semantic-system.js?v=20261001-4"></script>\n<script src="content-import.js?v=20261008-10"></script>
+<script src="app.js?v=20261009-1"></script>\n<script src="semantic-system.js?v=20261001-4"></script>\n<script src="content-import.js?v=20261008-10"></script>
 <script src="admin-config.js?v=20261008-1"></script>
 <script src="admin-auth.js?v=20261008-1"></script>
 <script src="template-system.js?v=20261008-4"></script>\n<script src="undo-system.js?v=20261008-3"></script>
