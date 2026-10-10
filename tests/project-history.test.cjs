@@ -243,3 +243,24 @@ test('applying a template remains undoable inside the current project', async t 
   await shortcut(page, 'Control+y');
   assert.equal(await snapshot(page), templated);
 });
+
+test('a fresh edit after Undo discards Redo within the current project', async t => {
+  const page = await editor(t);
+  await boundaries['saved project'](page);
+  await page.locator('#addContent').click();
+  await shortcut(page, 'Control+z');
+  await page.locator('#pageFooterShowCover').check();
+  const changed = await snapshot(page);
+  await shortcut(page, 'Control+y');
+  assert.equal(await snapshot(page), changed);
+});
+
+test('Ctrl+Z in a text field does not consume document history', async t => {
+  const page = await editor(t);
+  await history(page);
+  const changed = await snapshot(page);
+  await page.locator('#pageTitle').press('Control+z');
+  assert.equal(await snapshot(page), changed);
+  await shortcut(page, 'Control+z');
+  assert.notEqual(await snapshot(page), changed);
+});

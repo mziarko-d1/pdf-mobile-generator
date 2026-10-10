@@ -147,6 +147,15 @@ function initialState(){const c=coverScreen(),p=contentScreen();return{name:'Now
 let state=initialState();
 let pendingImageData='',pendingImageName='',pendingImageTextData='',pendingImageTextName='';
 
+// Replacing a document starts a new editing session. Templates and content edits
+// deliberately keep their checkpoints instead of using this boundary.
+function replaceProjectState(project){
+  state=project;
+  if(!state.palette) state.palette={...doctorPalette};
+  if(window.pdfMobileUndo) window.pdfMobileUndo.reset();
+  render();
+}
+
 function current(){return state.screens.find(s=>s.id===state.selected)||state.screens[0]}
 function safeFileName(name){return String(name||'material').trim().replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,' ').replace(/[. ]+$/,'')||'material'}
 function keyName(name){return String(name||'Materiał').trim().toLocaleLowerCase('pl-PL')}
@@ -419,7 +428,7 @@ async function refreshSaved(){const items=await getProjectIndex();$('savedProjec
 async function saveProject(){
   state.name=$('projectName').value.trim()||'Nowy materiał';const key=keyName(state.name);let items=await getProjectIndex();let item=items.find(x=>x.key===key);if(!item)item={id:uid('project'),key,createdAt:Date.now()};item.name=state.name;item.updatedAt=Date.now();await localforage.setItem(PROJECT_DATA_PREFIX+item.id,cloneState());items=[item,...items.filter(x=>x.id!==item.id)];await setProjectIndex(items);await refreshSaved();$('savedProjects').value=item.id;$('saveStatus').className='status ok';$('saveStatus').textContent='Projekt zapisany: '+state.name;return item;
 }
-async function loadProject(id){if(!id)return;const data=await localforage.getItem(PROJECT_DATA_PREFIX+id);if(!data){alert('Nie mogę znaleźć projektu.');return}state=data;if(!state.palette)state.palette={...doctorPalette};render();$('saveStatus').className='status ok';$('saveStatus').textContent='Projekt otwarty do edycji.'}
+async function loadProject(id){if(!id)return;const data=await localforage.getItem(PROJECT_DATA_PREFIX+id);if(!data){alert('Nie mogę znaleźć projektu.');return}replaceProjectState(data);$('saveStatus').className='status ok';$('saveStatus').textContent='Projekt otwarty do edycji.'}
 async function deleteProject(id){if(!id)return;const items=await getProjectIndex(),item=items.find(x=>x.id===id);if(!confirm('Usunąć projekt'+(item?' „'+item.name+'”':'')+'?'))return;await localforage.removeItem(PROJECT_DATA_PREFIX+id);await setProjectIndex(items.filter(x=>x.id!==id));await refreshSaved()}
 
 async function getPdfIndex(){return(await localforage.getItem(PDF_INDEX_KEY))||[]}
@@ -449,17 +458,63 @@ async function makeEditablePdf(){
 }
 async function exportProjectPdf(saveFirst){const btn=saveFirst?$('saveAndExport'):$('exportPdf'),old=btn.textContent;btn.disabled=true;btn.textContent=saveFirst?'Zapisuję HQ…':'Generuję HQ…';try{state.name=$('projectName').value.trim()||state.name||'Materiał';if(saveFirst)await saveProject();const bytes=await makeEditablePdf();if(saveFirst){await savePdfToLibrary(state.name,bytes);const folderSaved=await writePdfToFolder(state.name,bytes);if(folderSaved){$('saveStatus').className='status ok';$('saveStatus').textContent='Zapisano projekt, PDF w „Moje PDF-y” i plik w wybranym folderze.'}else{downloadBlob(new Blob([bytes],{type:'application/pdf'}),safeFileName(state.name)+'.pdf');$('saveStatus').className='status ok';$('saveStatus').textContent='Zapisano projekt i PDF w generatorze. Plik został też pobrany.'}}else{downloadBlob(new Blob([bytes],{type:'application/pdf'}),safeFileName(state.name)+'.pdf');$('saveStatus').className='status ok';$('saveStatus').textContent='PDF HQ wyeksportowany.'}}catch(e){console.error(e);$('saveStatus').className='status err';$('saveStatus').textContent='Eksport nie powiódł się: '+(e.message||'błąd')}finally{btn.disabled=false;btn.textContent=old}}
 
-async function openProjectPdfBytes(arrayBuffer,nameHint){try{const pdf=await pdfjsLib.getDocument({data:arrayBuffer}).promise,atts=await pdf.getAttachments();if(!atts)return false;let raw=null;for(const k of Object.keys(atts)){const a=atts[k];if((a.filename||k).includes('pdf-mobile-generator-project.json')){raw=a.content;break}}if(!raw)return false;const project=JSON.parse(new TextDecoder().decode(raw));if(!project?.screens)return false;state=project;if(!state.palette)state.palette={...doctorPalette};state.name=nameHint||state.name||'Materiał';render();$('saveStatus').className='status ok';$('saveStatus').textContent='PDF otwarty do edycji.';window.scrollTo({top:0,behavior:'smooth'});return true}catch(e){console.error(e);return false}}
+// PDF.js transfers its buffer to the worker; keep the original for ordinary PDF import.
+async function openProjectPdfBytes(arrayBuffer,nameHint){try{const pdf=await pdfjsLib.getDocument({data:arrayBuffer.slice(0)}).promise,atts=await pdf.getAttachments();if(!atts)return false;let raw=null;for(const k of Object.keys(atts)){const a=atts[k];if((a.filename||k).includes('pdf-mobile-generator-project.json')){raw=a.content;break}}if(!raw)return false;const project=JSON.parse(new TextDecoder().decode(raw));if(!project?.screens)return false;project.name=nameHint||project.name||'Materiał';replaceProjectState(project);$('saveStatus').className='status ok';$('saveStatus').textContent='PDF otwarty do edycji.';window.scrollTo({top:0,behavior:'smooth'});return true}catch(e){console.error(e);return false}}
 async function renderPdfPageToDataUrl(page,targetW,targetH){const base=page.getViewport({scale:1}),scale=Math.max(targetW/base.width,targetH/base.height),vp=page.getViewport({scale}),c=document.createElement('canvas');c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;return c.toDataURL('image/jpeg',.94)}
-async function importPdf(file){$('importStatus').textContent='Otwieram PDF…';const ab=await file.arrayBuffer();if(await openProjectPdfBytes(ab,file.name.replace(/\.pdf$/i,''))){$('importStatus').className='status ok';$('importStatus').textContent='PDF z generatora został otwarty do pełnej edycji.';return}const pdf=await pdfjsLib.getDocument({data:ab}).promise,first=await pdf.getPage(1),vp=first.getViewport({scale:1});state.w=vp.width>=vp.height?1123:794;state.h=vp.width>=vp.height?794:1123;state.format='custom';const screens=[];for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);if($('pdfImportMode').value==='background'){const bg=await renderPdfPageToDataUrl(page,state.w,state.h);screens.push({id:uid('p'),type:'content',title:'',intro:'',blocks:[],pdfBackground:bg})}else{const txt=await page.getTextContent(),body=txt.items.map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();screens.push({id:uid('p'),type:'content',title:'Strona '+i,intro:'',blocks:[{...newBlock('paragraph'),title:'',body}]})}}state.screens=screens.length?screens:[contentScreen()];state.selected=state.screens[0].id;state.name=file.name.replace(/\.pdf$/i,'');render();$('importStatus').className='status ok';$('importStatus').textContent='PDF zaimportowany ('+pdf.numPages+' stron).'}
-async function importDocx(file){$('importStatus').textContent='Otwieram DOCX…';const out=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()}),paras=out.value.split(/\n+/).map(x=>x.trim()).filter(Boolean);const screens=[];for(let i=0;i<paras.length;i+=5){const chunk=paras.slice(i,i+5);screens.push({id:uid('p'),type:'content',title:chunk.shift()||'Treść',intro:'',blocks:chunk.map(t=>({...newBlock('paragraph'),title:'',body:t}))})}state.screens=screens.length?screens:[contentScreen()];state.selected=state.screens[0].id;state.name=file.name.replace(/\.docx$/i,'');render();$('importStatus').className='status ok';$('importStatus').textContent='DOCX zaimportowany do edycji.'}
+async function importPdf(file){
+  $('importStatus').textContent='Otwieram PDF…';
+  const ab=await file.arrayBuffer(),name=file.name.replace(/\.pdf$/i,'');
+  if(await openProjectPdfBytes(ab,name)){
+    $('importStatus').className='status ok';
+    $('importStatus').textContent='PDF z generatora został otwarty do pełnej edycji.';
+    return;
+  }
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise,first=await pdf.getPage(1),vp=first.getViewport({scale:1});
+  // Build the replacement without mutating the active document during async IO.
+  const project=cloneState();
+  project.w=vp.width>=vp.height?1123:794;
+  project.h=vp.width>=vp.height?794:1123;
+  project.format='custom';
+  const mode=$('pdfImportMode').value,screens=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    const page=await pdf.getPage(i);
+    if(mode==='background'){
+      const bg=await renderPdfPageToDataUrl(page,project.w,project.h);
+      screens.push({id:uid('p'),type:'content',title:'',intro:'',blocks:[],pdfBackground:bg});
+    }else{
+      const txt=await page.getTextContent(),body=txt.items.map(x=>x.str).join(' ').replace(/\s+/g,' ').trim();
+      screens.push({id:uid('p'),type:'content',title:'Strona '+i,intro:'',blocks:[{...newBlock('paragraph'),title:'',body}]});
+    }
+  }
+  project.screens=screens.length?screens:[contentScreen()];
+  project.selected=project.screens[0].id;
+  project.name=name;
+  replaceProjectState(project);
+  $('importStatus').className='status ok';
+  $('importStatus').textContent='PDF zaimportowany ('+pdf.numPages+' stron).';
+}
+async function importDocx(file){
+  $('importStatus').textContent='Otwieram DOCX…';
+  const out=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()}),paras=out.value.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  const project=cloneState(),screens=[];
+  for(let i=0;i<paras.length;i+=5){
+    const chunk=paras.slice(i,i+5);
+    screens.push({id:uid('p'),type:'content',title:chunk.shift()||'Treść',intro:'',blocks:chunk.map(t=>({...newBlock('paragraph'),title:'',body:t}))});
+  }
+  project.screens=screens.length?screens:[contentScreen()];
+  project.selected=project.screens[0].id;
+  project.name=file.name.replace(/\.docx$/i,'');
+  replaceProjectState(project);
+  $('importStatus').className='status ok';
+  $('importStatus').textContent='DOCX zaimportowany do edycji.';
+}
 
 function readImageFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 async function templateFromFile(file){if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,page=await pdf.getPage(1);return await renderPdfPageToDataUrl(page,state.w,state.h)}return await readImageFile(file)}
 
 $('projectName').oninput=e=>{state.name=e.target.value;const f=normalizePageFooter();if(f.enabled&&!f.text)renderPreview()};
 $('saveProject').onclick=()=>saveProject();$('loadProject').onclick=()=>loadProject($('savedProjects').value);$('deleteProject').onclick=()=>deleteProject($('savedProjects').value);
-$('newProject').onclick=()=>{if(!confirm('Utworzyć nowy projekt?\n\nNiezapisane zmiany zostaną utracone.'))return;state=initialState();render();$('saveStatus').className='status';$('saveStatus').textContent='Nowy projekt.'};
+$('newProject').onclick=()=>{if(!confirm('Utworzyć nowy projekt?\n\nNiezapisane zmiany zostaną utracone.'))return;replaceProjectState(initialState());$('saveStatus').className='status';$('saveStatus').textContent='Nowy projekt.'};
 $('format').onchange=e=>setFormat(e.target.value);$('customW').oninput=()=>{if(state.format==='custom')setFormat('custom')};$('customH').oninput=()=>{if(state.format==='custom')setFormat('custom')};
 $('doctorPreset').onclick=()=>{state.preset='doctor';state.palette={...doctorPalette};applyTheme();renderPreview()};$('customPreset').onclick=()=>{state.preset='custom';applyTheme();renderPreview()};
 [['cInk','ink'],['cBody','body'],['cBg','bg'],['cImportant','important'],['cWarning','warning'],['cRemember','remember'],['cAdditional','additional']].forEach(([id,k])=>{$(id).oninput=e=>{if(state.preset==='doctor')return;state.palette[k]=e.target.value;applyTheme();renderPreview()}});
