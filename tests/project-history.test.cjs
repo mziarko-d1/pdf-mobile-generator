@@ -132,6 +132,8 @@ for (const [name, open] of Object.entries(boundaries)) {
       const baseline = await snapshot(page);
       await shortcut(page, redo ? 'Control+y' : 'Control+z');
       assert.equal(await snapshot(page), baseline, 'History cannot restore a different project');
+      await shortcut(page, redo ? 'Control+z' : 'Control+y');
+      assert.equal(await snapshot(page), baseline, 'Both history stacks must be empty');
       await page.locator('#addContent').click();
       const edited = await snapshot(page);
       assert.notEqual(edited, baseline);
@@ -257,10 +259,35 @@ test('a fresh edit after Undo discards Redo within the current project', async t
 
 test('Ctrl+Z in a text field does not consume document history', async t => {
   const page = await editor(t);
-  await history(page);
+  await page.locator('#addContent').click();
   const changed = await snapshot(page);
   await page.locator('#pageTitle').press('Control+z');
   assert.equal(await snapshot(page), changed);
   await shortcut(page, 'Control+z');
   assert.notEqual(await snapshot(page), changed);
+});
+
+test('filling a template from PDF content retains the current document checkpoint', async t => {
+  const page = await editor(t);
+  await history(page);
+  const baseline = await snapshot(page);
+  const bytes = await page.evaluate(async () => {
+    const doc = await PDFLib.PDFDocument.create();
+    const sheet = doc.addPage([600, 800]);
+    sheet.drawText('Article for regression test', {x: 30, y: 750, size: 18});
+    for (let i = 0; i < 8; i++) {
+      sheet.drawText('This paragraph contains useful educational content for the reader.', {x: 30, y: 700 - i * 45, size: 12});
+    }
+    return Array.from(await doc.save());
+  });
+  await page.locator('#articleImportPdf').setInputFiles({name: 'article.pdf', mimeType: 'application/pdf', buffer: Buffer.from(bytes)});
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#fillTemplateFromContent').click();
+  await page.waitForFunction(() => document.querySelector('#contentImportStatus').textContent.startsWith('Gotowe:'));
+  const filled = await snapshot(page);
+  assert.notEqual(filled, baseline);
+  await shortcut(page, 'Control+z');
+  assert.equal(await snapshot(page), baseline);
+  await shortcut(page, 'Control+y');
+  assert.equal(await snapshot(page), filled);
 });
