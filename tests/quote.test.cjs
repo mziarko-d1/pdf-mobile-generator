@@ -14,7 +14,7 @@ before(async () => {
       const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
       if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
       const content = await readFile(file);
-      res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') ? 'application/json' : 'text/html');
+      res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') ? 'application/json' : 'text/html');
       res.end(content);
     } catch { res.writeHead(404).end(); }
   });
@@ -204,4 +204,27 @@ test('capture the HCP and Patient quote layout for visual review', async t => {
   const dir = path.join(root, 'artifacts');
   await require('node:fs/promises').mkdir(dir, {recursive:true});
   await page.screenshot({path:path.join(dir,'quote-preview.png'),fullPage:true});
+});
+
+test('quote has rounded corners, the box shadow and the supplied role-specific icons', async t => {
+  const page = await editor(t);
+  const id = await addQuote(page);
+  assert.deepEqual(await page.locator('.quote-card').evaluate(el => ({
+    radius:getComputedStyle(el).borderRadius,
+    shadow:getComputedStyle(el).boxShadow
+  })), {radius:'16px', shadow:'rgba(174, 184, 229, 0.3) 0px 30px 40px 0px'});
+  await page.waitForFunction(() => document.querySelector('.quote-mark-hcp').naturalWidth === 100);
+  assert.equal(await page.locator('.quote-mark-hcp').isVisible(), true);
+  assert.equal(await page.locator('.quote-mark-patient').isVisible(), false);
+  assert.equal(await page.locator('.quote-mark-fallback').isVisible(), false);
+  await page.locator(`[data-semantic-block="${id}"]`).selectOption('patient');
+  await page.waitForFunction(() => document.querySelector('.quote-mark-patient').naturalWidth === 100);
+  assert.equal(await page.locator('.quote-mark-patient').isVisible(), true);
+  assert.equal(await page.locator('.quote-mark-hcp').isVisible(), false);
+  await page.locator(`[data-semantic-block="${id}"]`).selectOption('inherit');
+  await page.locator('#semanticSlideStyle').selectOption('hcp');
+  assert.equal(await page.locator('.quote-mark-hcp').isVisible(), true);
+  await page.locator('#semanticSlideStyle').selectOption('neutral');
+  assert.equal(await page.locator('.quote-mark-fallback').isVisible(), true);
+  assert.equal(await page.locator('.quote-mark-hcp').isVisible(), false);
 });

@@ -14,7 +14,7 @@ before(async () => {
       const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
       if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
       const content = await readFile(file);
-      res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') ? 'application/json' : 'text/html');
+      res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') ? 'application/json' : 'text/html');
       res.end(content);
     } catch { res.writeHead(404).end(); }
   });

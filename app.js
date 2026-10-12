@@ -92,7 +92,7 @@ function normalizeQuote(block){
   return block;
 }
 function quoteMarkHtml(){
-  return '<svg class="quote-mark" viewBox="0 0 80 52" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M31 5C14 8 5 19 5 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/><path d="M72 5C55 8 46 19 46 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/></g></svg>';
+  return '<span class="quote-mark" aria-hidden="true"><img class="quote-mark-hcp" src="assets/quote-hcp.png" alt=""><img class="quote-mark-patient" src="assets/quote-patient.png" alt=""><svg class="quote-mark-fallback" viewBox="0 0 80 52" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M31 5C14 8 5 19 5 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/><path d="M72 5C55 8 46 19 46 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/></g></svg></span>';
 }
 function normalizeWhiteCard(block){
   if(!block||block.type!=='whitecard') return block;
