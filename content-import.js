@@ -439,7 +439,7 @@
       out.semanticRole=slot.semanticRole||(piece&&piece.semanticRole)||'inherit';
       return out;
     }
-    const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText'];
+    const semanticSlotTypes=['important','warning','remember','additional','whitecard','imageText','quote'];
     const pieceType=String((piece&&piece.type)||'paragraph');
 
     if(!semanticSlotTypes.includes(slotType)) out.type=pieceType;

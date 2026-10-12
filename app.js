@@ -20,10 +20,14 @@ function newBlock(type='paragraph'){
     warning:{title:'Uważaj',body:'Tutaj wpisz ostrzeżenie.'},
     remember:{title:'Pamiętaj',body:'Tutaj wpisz informację do zapamiętania.'},
     additional:{title:'Dodatkowo',body:'Tutaj wpisz dodatkową informację.'},
-    whitecard:{title:'',body:'Krótki opis lub doprecyzowanie.'}
+    whitecard:{title:'',body:'Krótki opis lub doprecyzowanie.'},
+    quote:{title:'',body:'Tutaj wpisz treść cytatu.'}
   };
   const d=defaults[type]||defaults.paragraph;
   const block={id:uid('b'),type,title:d.title,body:d.body,showIcon:false,icon:'check'};
+  if(type==='quote'){
+    Object.assign(block,{author:'Imię i nazwisko',authorRole:'Stanowisko · organizacja',showPhoto:true,photoSrc:'',photoAlt:'Zdjęcie autora',semanticRole:'hcp'});
+  }
   if(type==='whitecard'){
     Object.assign(block,{
       bigText:'92%',
@@ -42,6 +46,19 @@ function newBlock(type='paragraph'){
     });
   }
   return block;
+}
+function normalizeQuote(block){
+  if(!block||block.type!=='quote') return block;
+  block.body=String(block.body??'');
+  block.author=String(block.author??'');
+  block.authorRole=String(block.authorRole??'');
+  block.showPhoto=block.showPhoto!==false;
+  block.photoSrc=String(block.photoSrc||'');
+  block.photoAlt=String(block.photoAlt||'Zdjęcie autora');
+  return block;
+}
+function quoteMarkHtml(){
+  return '<svg class="quote-mark" viewBox="0 0 80 52" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M31 5C14 8 5 19 5 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/><path d="M72 5C55 8 46 19 46 34c0 9 5 14 14 14s15-6 15-15-6-15-14-15c-2 0-5 1-7 2 4-6 9-11 18-15Z"/></g></svg>';
 }
 function normalizeWhiteCard(block){
   if(!block||block.type!=='whitecard') return block;
@@ -179,6 +196,14 @@ function bodyHtml(body,type){
   return lines.length?lines.map(x=>'<p>'+esc(x)+'</p>').join(''):'<p></p>';
 }
 function blockHtml(b){
+  if(b.type==='quote'){
+    normalizeQuote(b);
+    const photo=b.showPhoto&&b.photoSrc?'<img class="quote-avatar" src="'+esc(b.photoSrc)+'" alt="'+esc(b.photoAlt)+'">':'';
+    const author=b.author?'<div class="quote-author-name">'+esc(b.author)+'</div>':'';
+    const role=b.authorRole?'<div class="quote-author-role">'+esc(b.authorRole)+'</div>':'';
+    const credit=photo||author||role?'<figcaption class="quote-credit">'+photo+'<div class="quote-author-copy">'+author+role+'</div></figcaption>':'';
+    return '<div class="topic quote-topic" draggable="true" data-block-id="'+b.id+'"><figure class="quote-card">'+quoteMarkHtml()+'<blockquote class="quote-text">'+bodyHtml(b.body,'paragraph')+'</blockquote>'+credit+'</figure></div>';
+  }
   if(b.type==='columns'){
     normalizeColumnsBlock(b);
     const cells=b.columns.map(function(col){
@@ -239,17 +264,29 @@ function renderEditor(){
     $('coverHeading').oninput=e=>{p.heading=e.target.value;renderPreview();renderScreenList()};return;
   }
   const bgHint=p.pdfBackground?'<div class="brand-note">Oryginalna strona PDF jest tłem. Edytujesz tylko nakładki.</div>':'';
-  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addWhiteCard" class="mini secondary">+ Box ze zdjęciem</button><button id="addColumns" class="mini secondary">+ Kolumny</button></div></div><div id="blocks"></div>';
+  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addWhiteCard" class="mini secondary">+ Box ze zdjęciem</button><button id="addColumns" class="mini secondary">+ Kolumny</button><button id="addQuote" class="mini secondary">+ Cytat</button></div></div><div id="blocks"></div>';
   if(!p.pdfBackground){$('pageTitle').oninput=e=>{p.title=e.target.value;renderPreview();renderScreenList()};$('pageIntro').oninput=e=>{p.intro=e.target.value;renderPreview()}}
   $('addText').onclick=()=>{p.blocks.push(newBlock('paragraph'));renderEditor();renderPreview()};
   $('addList').onclick=()=>{p.blocks.push(newBlock('bullets'));renderEditor();renderPreview()};
   $('addBox').onclick=()=>{p.blocks.push(newBlock('important'));renderEditor();renderPreview()};
   $('addWhiteCard').onclick=()=>{p.blocks.push(newBlock('whitecard'));renderEditor();renderPreview()};
+  $('addQuote').onclick=()=>addBlockAt('quote',p.id);
   $('addColumns').onclick=()=>{p.blocks.push(newColumnsBlock(2));renderEditor();renderPreview()};
   $('blocks').innerHTML=(p.blocks||[]).map((b,i)=>blockEditorHtml(b,i)).join('');
   bindBlockEditors(p);
 }
 function blockEditorHtml(b,i){
+  if(b.type==='quote'){
+    normalizeQuote(b);
+    return '<div class="block-card quote-editor"><div class="block-head"><h4>Blok '+(i+1)+' · Cytat</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div>'+
+      '<label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="quote" selected>Cytat</option><option value="paragraph">Akapit</option></select>'+
+      '<label>Treść cytatu</label><textarea data-quote-field="body" data-quote-id="'+b.id+'">'+esc(b.body)+'</textarea>'+
+      '<label>Autor <span class="muted">opcjonalny</span></label><input data-quote-field="author" data-quote-id="'+b.id+'" value="'+esc(b.author)+'">'+
+      '<label>Stanowisko / organizacja <span class="muted">opcjonalne</span></label><input data-quote-field="authorRole" data-quote-id="'+b.id+'" value="'+esc(b.authorRole)+'">'+
+      '<label class="checkbox"><input type="checkbox" data-quote-show-photo="'+b.id+'" '+(b.showPhoto?'checked':'')+'> Pokaż zdjęcie autora</label>'+
+      (b.showPhoto?'<label>Zdjęcie autora</label><input type="file" accept="image/*" data-quote-photo="'+b.id+'">'+(b.photoSrc?'<img class="quote-editor-avatar" src="'+esc(b.photoSrc)+'" alt="'+esc(b.photoAlt)+'"><button type="button" class="mini ghost" data-quote-remove-photo="'+b.id+'">Usuń zdjęcie</button>':'<p class="muted">Bez zdjęcia podpis pozostanie wyrównany do lewej.</p>'):'')+
+      '</div>';
+  }
   if(b.type==='columns'){
     normalizeColumnsBlock(b);
     const columns=b.columns.map(function(col,index){
@@ -290,9 +327,41 @@ function blockEditorHtml(b,i){
     const w=Math.max(25,Math.min(70,Number(b.width)||45));
     return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+' · Obrazek + tekst</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><img class="image-editor-preview" src="'+b.src+'"><label>Układ</label><select data-imgside="'+b.id+'"><option value="left" '+(b.side!=='right'?'selected':'')+'>Obrazek po lewej</option><option value="right" '+(b.side==='right'?'selected':'')+'>Obrazek po prawej</option></select><label>Nagłówek</label><input data-imgtitle="'+b.id+'" value="'+esc(b.title||'')+'"><label>Tekst</label><textarea data-imgbody="'+b.id+'">'+esc(b.body||'')+'</textarea><label>Szerokość obrazka</label><div class="range-row"><input type="range" min="25" max="70" step="5" value="'+w+'" data-imgtextwidth="'+b.id+'"><span class="range-value" data-imgtextwidth-label="'+b.id+'">'+w+'%</span></div></div>';
   }
-  return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+'</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="paragraph" '+(b.type==='paragraph'?'selected':'')+'>Akapit</option><option value="bullets" '+(b.type==='bullets'?'selected':'')+'>Lista kropkowana</option><option value="numbered" '+(b.type==='numbered'?'selected':'')+'>Lista numerowana</option><option value="important" '+(b.type==='important'?'selected':'')+'>Ważne</option><option value="warning" '+(b.type==='warning'?'selected':'')+'>Uważaj</option><option value="remember" '+(b.type==='remember'?'selected':'')+'>Pamiętaj</option><option value="additional" '+(b.type==='additional'?'selected':'')+'>Dodatkowy</option><option value="whitecard" '+(b.type==='whitecard'?'selected':'')+'>Box ze zdjęciem</option></select><label>Nagłówek</label><input data-b="'+b.id+'" data-k="title" value="'+esc(b.title||'')+'"><label>Treść</label><textarea data-b="'+b.id+'" data-k="body">'+esc(b.body||'')+'</textarea><label class="checkbox"><input data-b="'+b.id+'" data-k="showIcon" type="checkbox" '+(b.showIcon?'checked':'')+'> Ikona po lewej</label>'+(b.showIcon?'<label>Ikona</label><select data-b="'+b.id+'" data-k="icon"><option value="check" '+(b.icon==='check'?'selected':'')+'>Check</option><option value="info" '+(b.icon==='info'?'selected':'')+'>Info</option></select>':'')+'</div>';
+  return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+'</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="paragraph" '+(b.type==='paragraph'?'selected':'')+'>Akapit</option><option value="bullets" '+(b.type==='bullets'?'selected':'')+'>Lista kropkowana</option><option value="numbered" '+(b.type==='numbered'?'selected':'')+'>Lista numerowana</option><option value="important" '+(b.type==='important'?'selected':'')+'>Ważne</option><option value="warning" '+(b.type==='warning'?'selected':'')+'>Uważaj</option><option value="remember" '+(b.type==='remember'?'selected':'')+'>Pamiętaj</option><option value="additional" '+(b.type==='additional'?'selected':'')+'>Dodatkowy</option><option value="quote" '+(b.type==='quote'?'selected':'')+'>Cytat</option><option value="whitecard" '+(b.type==='whitecard'?'selected':'')+'>Box ze zdjęciem</option></select><label>Nagłówek</label><input data-b="'+b.id+'" data-k="title" value="'+esc(b.title||'')+'"><label>Treść</label><textarea data-b="'+b.id+'" data-k="body">'+esc(b.body||'')+'</textarea><label class="checkbox"><input data-b="'+b.id+'" data-k="showIcon" type="checkbox" '+(b.showIcon?'checked':'')+'> Ikona po lewej</label>'+(b.showIcon?'<label>Ikona</label><select data-b="'+b.id+'" data-k="icon"><option value="check" '+(b.icon==='check'?'selected':'')+'>Check</option><option value="info" '+(b.icon==='info'?'selected':'')+'>Info</option></select>':'')+'</div>';
 }
 function bindBlockEditors(p){
+  document.querySelectorAll('[data-quote-field]').forEach(x=>x.oninput=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.quoteId);
+    if(!b||b.type!=='quote') return;
+    b[x.dataset.quoteField]=x.value;
+    renderPreview();
+  });
+  document.querySelectorAll('[data-quote-show-photo]').forEach(x=>x.onchange=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.quoteShowPhoto);
+    if(!b) return;
+    b.showPhoto=x.checked;
+    renderEditor();renderPreview();
+  });
+  document.querySelectorAll('[data-quote-photo]').forEach(x=>x.onchange=async()=>{
+    const file=x.files&&x.files[0],b=p.blocks.find(z=>z.id===x.dataset.quotePhoto);
+    if(!file||!b) return;
+    if(!file.type.startsWith('image/')){alert('Wybierz plik ze zdjęciem.');return;}
+    try{
+      const src=await readImageFile(file);
+      // Ignore stale uploads after Undo, deletion, or a document switch.
+      if(!state.screens.includes(p)||!p.blocks.includes(b)||b.type!=='quote') return;
+      if(window.pdfMobileUndo) window.pdfMobileUndo.checkpoint();
+      b.photoSrc=src;b.photoAlt=b.author?'Zdjęcie: '+b.author:'Zdjęcie autora';
+      renderEditor();renderPreview();
+    }catch(error){console.error(error);alert('Nie udało się wczytać zdjęcia.');}
+  });
+  document.querySelectorAll('[data-quote-remove-photo]').forEach(x=>x.onclick=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.quoteRemovePhoto);
+    if(!b) return;
+    if(window.pdfMobileUndo) window.pdfMobileUndo.checkpoint();
+    b.photoSrc='';b.photoAlt='Zdjęcie autora';
+    renderEditor();renderPreview();
+  });
   document.querySelectorAll('[data-column-count]').forEach(function(x){
     x.onchange=function(){
       const b=p.blocks.find(function(z){return z.id===x.dataset.columnCount;});
@@ -463,6 +532,7 @@ $('newProject').onclick=()=>{if(!confirm('Utworzyć nowy projekt?\n\nNiezapisane
 $('format').onchange=e=>setFormat(e.target.value);$('customW').oninput=()=>{if(state.format==='custom')setFormat('custom')};$('customH').oninput=()=>{if(state.format==='custom')setFormat('custom')};
 $('doctorPreset').onclick=()=>{state.preset='doctor';state.palette={...doctorPalette};applyTheme();renderPreview()};$('customPreset').onclick=()=>{state.preset='custom';applyTheme();renderPreview()};
 [['cInk','ink'],['cBody','body'],['cBg','bg'],['cImportant','important'],['cWarning','warning'],['cRemember','remember'],['cAdditional','additional']].forEach(([id,k])=>{$(id).oninput=e=>{if(state.preset==='doctor')return;state.palette[k]=e.target.value;applyTheme();renderPreview()}});
+$('quotePaletteButton').onclick=()=>{const target=current()?.type==='content'?current():state.screens.find(s=>s.type==='content');if(target)addBlockAt('quote',target.id);else alert('Dodaj ekran treści, aby umieścić cytat.');};
 $('addCover').onclick=()=>{const p=coverScreen();state.screens.push(p);state.selected=p.id;render()};$('addContent').onclick=()=>{const p=contentScreen();state.screens.push(p);state.selected=p.id;render()};
 $('materialLogo').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.materialLogo=await readImageFile(f);renderPreview()};
 $('templateUpload').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.template=await templateFromFile(f);renderPreview()};$('removeTemplate').onclick=()=>{state.template='';renderPreview()};
