@@ -1,7 +1,7 @@
 {
   "doctorOneTemplateVersion": 1,
   "meta": {
-    "name": "Patient · Mobile starter · kopia",
+    "name": "Patient · Mobile starter - statystyki",
     "format": "mobile",
     "w": 390,
     "h": 844,
@@ -9,7 +9,7 @@
     "description": "Wspólny szablon Doctor.One."
   },
   "project": {
-    "name": "Patient · Mobile starter · kopia",
+    "name": "Patient · Mobile starter - statystyki",
     "format": "mobile",
     "w": 390,
     "h": 844,
@@ -27,19 +27,19 @@
     "materialLogo": "",
     "screens": [
       {
-        "id": "p_mv56ksp1_8w3eiy",
+        "id": "p_mv56wfzc_8qdg63",
         "type": "cover",
         "heading": "Tytuł materiału dla pacjenta",
         "blocks": []
       },
       {
-        "id": "p_mv56ksp1_xp0x42",
+        "id": "p_mv56wfzc_0kpues",
         "type": "content",
         "title": "Tytuł sekcji",
         "intro": "Wstęp do tej sekcji, ale możesz go usunąć, jeśli tego nie potrzebujesz.",
         "blocks": [
           {
-            "id": "b_mv56ksp1_myywom",
+            "id": "b_mv56wfzc_h59o6u",
             "type": "paragraph",
             "title": "",
             "body": "Wprowadź treść materiału, która może mieć kilka lub kilkanaście linijek!",
@@ -48,7 +48,7 @@
             "semanticRole": "inherit"
           },
           {
-            "id": "b_mv56owdo_mr10a2",
+            "id": "b_mv56wfzc_udfk9o",
             "type": "whitecard",
             "title": "",
             "body": "Krótki opis lub doprecyzowanie.",
@@ -73,7 +73,7 @@
         "semanticAuto": true
       }
     ],
-    "selected": "p_mv56ksp1_xp0x42",
+    "selected": "p_mv56wfzc_8qdg63",
     "pageFooter": {
       "enabled": false,
       "text": "",
