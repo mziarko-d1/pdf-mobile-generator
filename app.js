@@ -21,10 +21,14 @@ function newBlock(type='paragraph'){
     remember:{title:'Pamiętaj',body:'Tutaj wpisz informację do zapamiętania.'},
     additional:{title:'Dodatkowo',body:'Tutaj wpisz dodatkową informację.'},
     whitecard:{title:'',body:'Krótki opis lub doprecyzowanie.'},
-    quote:{title:'',body:'Tutaj wpisz treść cytatu.'}
+    quote:{title:'',body:'Tutaj wpisz treść cytatu.'},
+    metric:{title:'',body:'Średnia ocena jakości kontaktu z lekarzem.'}
   };
   const d=defaults[type]||defaults.paragraph;
   const block={id:uid('b'),type,title:d.title,body:d.body,showIcon:false,icon:'check'};
+  if(type==='metric'){
+    Object.assign(block,{mode:'rating',value:'9,47',unit:'%',ratingScale:10,emphasis:'74% ocen to maksymalne 10/10.',semanticRole:'patient'});
+  }
   if(type==='quote'){
     Object.assign(block,{author:'Imię i nazwisko',authorRole:'Stanowisko · organizacja',showPhoto:true,photoSrc:'',photoAlt:'Zdjęcie autora',semanticRole:'hcp'});
   }
@@ -46,6 +50,36 @@ function newBlock(type='paragraph'){
     });
   }
   return block;
+}
+function normalizeMetric(block){
+  if(!block||block.type!=='metric') return block;
+  block.mode=block.mode==='stat'?'stat':'rating';
+  block.value=String(block.value??'');
+  block.unit=String(block.unit??'%');
+  block.ratingScale=Number(block.ratingScale)===5?5:10;
+  block.body=String(block.body??'');
+  block.emphasis=String(block.emphasis??'');
+  return block;
+}
+function metricRatingValue(block){
+  const text=String(block.value??'').trim().replace(',','.');
+  if(!text) return null;
+  const value=Number(text);
+  return Number.isFinite(value)&&value>=0&&value<=block.ratingScale?value:null;
+}
+function metricDisplayValue(block){
+  if(block.mode==='stat') return block.value;
+  const value=metricRatingValue(block);
+  return value===null?'—':value.toLocaleString('pl-PL',{maximumFractionDigits:2});
+}
+function metricStarsHtml(block){
+  const score=metricRatingValue(block)??0;
+  const star='M12 2.4 15 8.5 21.7 9.5 16.9 14.2 18 21 12 17.8 6 21 7.1 14.2 2.3 9.5 9 8.5Z';
+  return Array.from({length:block.ratingScale},(_,index)=>{
+    const filled=Math.max(0,Math.min(1,score-index));
+    const clip='metric-star-'+String(block.id).replace(/[^a-zA-Z0-9_-]/g,'_')+'-'+index;
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-star-fill="'+filled+'"><defs><clipPath id="'+clip+'"><rect x="0" y="0" width="'+(24*filled)+'" height="24"/></clipPath></defs><path d="'+star+'" fill="currentColor" opacity=".28"/><path d="'+star+'" fill="currentColor" clip-path="url(#'+clip+')"/></svg>';
+  }).join('');
 }
 function normalizeQuote(block){
   if(!block||block.type!=='quote') return block;
@@ -196,6 +230,13 @@ function bodyHtml(body,type){
   return lines.length?lines.map(x=>'<p>'+esc(x)+'</p>').join(''):'<p></p>';
 }
 function blockHtml(b){
+  if(b.type==='metric'){
+    normalizeMetric(b);
+    const value=metricDisplayValue(b),unit=b.mode==='rating'?'/'+b.ratingScale:b.unit;
+    const stars=b.mode==='rating'?'<div class="metric-stars" role="img" aria-label="'+esc('Ocena '+value+' na '+b.ratingScale)+'">'+metricStarsHtml(b)+'</div>':'';
+    const copy=b.body||b.emphasis?'<div class="metric-caption">'+(b.body?'<div class="metric-description">'+bodyHtml(b.body,'paragraph')+'</div>':'')+(b.emphasis?'<div class="metric-emphasis">'+esc(b.emphasis)+'</div>':'')+'</div>':'';
+    return '<div class="topic metric-topic" draggable="true" data-block-id="'+b.id+'"><section class="metric-card mode-'+b.mode+'" aria-label="'+(b.mode==='rating'?'Ocena':'Statystyka')+'">'+stars+'<div class="metric-value"><span class="metric-number">'+esc(value)+'</span>'+(unit?'<span class="metric-unit">'+esc(unit)+'</span>':'')+'</div>'+copy+'</section></div>';
+  }
   if(b.type==='quote'){
     normalizeQuote(b);
     const photo=b.showPhoto&&b.photoSrc?'<img class="quote-avatar" src="'+esc(b.photoSrc)+'" alt="'+esc(b.photoAlt)+'">':'';
@@ -264,18 +305,31 @@ function renderEditor(){
     $('coverHeading').oninput=e=>{p.heading=e.target.value;renderPreview();renderScreenList()};return;
   }
   const bgHint=p.pdfBackground?'<div class="brand-note">Oryginalna strona PDF jest tłem. Edytujesz tylko nakładki.</div>':'';
-  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addWhiteCard" class="mini secondary">+ Box ze zdjęciem</button><button id="addColumns" class="mini secondary">+ Kolumny</button><button id="addQuote" class="mini secondary">+ Cytat</button></div></div><div id="blocks"></div>';
+  $('editor').innerHTML=bgHint+(p.pdfBackground?'':'<label>Tytuł ekranu</label><input id="pageTitle" value="'+esc(p.title||'')+'"><label>Wstęp</label><textarea id="pageIntro">'+esc(p.intro||'')+'</textarea>')+'<div class="block-head" style="margin-top:12px"><h4>Bloki</h4><div class="block-editor-tools"><button id="addText" class="mini secondary">+ Tekst</button><button id="addList" class="mini secondary">+ Lista</button><button id="addBox" class="mini secondary">+ Box</button><button id="addWhiteCard" class="mini secondary">+ Box ze zdjęciem</button><button id="addColumns" class="mini secondary">+ Kolumny</button><button id="addQuote" class="mini secondary">+ Cytat</button><button id="addMetric" class="mini secondary">+ Statystyka / ocena</button></div></div><div id="blocks"></div>';
   if(!p.pdfBackground){$('pageTitle').oninput=e=>{p.title=e.target.value;renderPreview();renderScreenList()};$('pageIntro').oninput=e=>{p.intro=e.target.value;renderPreview()}}
   $('addText').onclick=()=>{p.blocks.push(newBlock('paragraph'));renderEditor();renderPreview()};
   $('addList').onclick=()=>{p.blocks.push(newBlock('bullets'));renderEditor();renderPreview()};
   $('addBox').onclick=()=>{p.blocks.push(newBlock('important'));renderEditor();renderPreview()};
   $('addWhiteCard').onclick=()=>{p.blocks.push(newBlock('whitecard'));renderEditor();renderPreview()};
+  $('addMetric').onclick=()=>addBlockAt('metric',p.id);
   $('addQuote').onclick=()=>addBlockAt('quote',p.id);
   $('addColumns').onclick=()=>{p.blocks.push(newColumnsBlock(2));renderEditor();renderPreview()};
   $('blocks').innerHTML=(p.blocks||[]).map((b,i)=>blockEditorHtml(b,i)).join('');
   bindBlockEditors(p);
 }
 function blockEditorHtml(b,i){
+  if(b.type==='metric'){
+    normalizeMetric(b);
+    return '<div class="block-card metric-editor"><div class="block-head"><h4>Blok '+(i+1)+' · Statystyka / ocena</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div>'+
+      '<label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="metric" selected>Statystyka / ocena</option><option value="paragraph">Akapit</option></select>'+
+      '<label>Tryb</label><select data-metric-mode="'+b.id+'"><option value="rating" '+(b.mode==='rating'?'selected':'')+'>Ocena · gwiazdki</option><option value="stat" '+(b.mode==='stat'?'selected':'')+'>Statystyka · wartość i jednostka</option></select>'+
+      '<label>Wartość</label><input data-metric-field="value" data-metric-id="'+b.id+'" inputmode="decimal" value="'+esc(b.value)+'">'+
+      (b.mode==='rating'?'<label>Skala oceny</label><select data-metric-scale="'+b.id+'"><option value="5" '+(b.ratingScale===5?'selected':'')+'>5 gwiazdek</option><option value="10" '+(b.ratingScale===10?'selected':'')+'>10 gwiazdek</option></select><p class="muted">Ocena od 0 do '+b.ratingScale+'. Możesz użyć przecinka lub kropki.</p>':'<label>Jednostka <span class="muted">opcjonalna</span></label><input data-metric-field="unit" data-metric-id="'+b.id+'" value="'+esc(b.unit)+'" placeholder="np. %, tys., osób">')+
+      '<label>Opis <span class="muted">opcjonalny</span></label><textarea data-metric-field="body" data-metric-id="'+b.id+'">'+esc(b.body)+'</textarea>'+
+      '<label>Pogrubione podsumowanie <span class="muted">opcjonalne</span></label><input data-metric-field="emphasis" data-metric-id="'+b.id+'" value="'+esc(b.emphasis)+'">'+
+      (b.mode==='rating'&&metricRatingValue(b)===null?'<p class="status err">Wpisz ocenę od 0 do '+b.ratingScale+'.</p>':'')+
+      '</div>';
+  }
   if(b.type==='quote'){
     normalizeQuote(b);
     return '<div class="block-card quote-editor"><div class="block-head"><h4>Blok '+(i+1)+' · Cytat</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div>'+
@@ -327,9 +381,28 @@ function blockEditorHtml(b,i){
     const w=Math.max(25,Math.min(70,Number(b.width)||45));
     return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+' · Obrazek + tekst</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><img class="image-editor-preview" src="'+b.src+'"><label>Układ</label><select data-imgside="'+b.id+'"><option value="left" '+(b.side!=='right'?'selected':'')+'>Obrazek po lewej</option><option value="right" '+(b.side==='right'?'selected':'')+'>Obrazek po prawej</option></select><label>Nagłówek</label><input data-imgtitle="'+b.id+'" value="'+esc(b.title||'')+'"><label>Tekst</label><textarea data-imgbody="'+b.id+'">'+esc(b.body||'')+'</textarea><label>Szerokość obrazka</label><div class="range-row"><input type="range" min="25" max="70" step="5" value="'+w+'" data-imgtextwidth="'+b.id+'"><span class="range-value" data-imgtextwidth-label="'+b.id+'">'+w+'%</span></div></div>';
   }
-  return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+'</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="paragraph" '+(b.type==='paragraph'?'selected':'')+'>Akapit</option><option value="bullets" '+(b.type==='bullets'?'selected':'')+'>Lista kropkowana</option><option value="numbered" '+(b.type==='numbered'?'selected':'')+'>Lista numerowana</option><option value="important" '+(b.type==='important'?'selected':'')+'>Ważne</option><option value="warning" '+(b.type==='warning'?'selected':'')+'>Uważaj</option><option value="remember" '+(b.type==='remember'?'selected':'')+'>Pamiętaj</option><option value="additional" '+(b.type==='additional'?'selected':'')+'>Dodatkowy</option><option value="quote" '+(b.type==='quote'?'selected':'')+'>Cytat</option><option value="whitecard" '+(b.type==='whitecard'?'selected':'')+'>Box ze zdjęciem</option></select><label>Nagłówek</label><input data-b="'+b.id+'" data-k="title" value="'+esc(b.title||'')+'"><label>Treść</label><textarea data-b="'+b.id+'" data-k="body">'+esc(b.body||'')+'</textarea><label class="checkbox"><input data-b="'+b.id+'" data-k="showIcon" type="checkbox" '+(b.showIcon?'checked':'')+'> Ikona po lewej</label>'+(b.showIcon?'<label>Ikona</label><select data-b="'+b.id+'" data-k="icon"><option value="check" '+(b.icon==='check'?'selected':'')+'>Check</option><option value="info" '+(b.icon==='info'?'selected':'')+'>Info</option></select>':'')+'</div>';
+  return '<div class="block-card"><div class="block-head"><h4>Blok '+(i+1)+'</h4><button class="danger mini" data-r="'+b.id+'">Usuń</button></div><label>Typ</label><select data-b="'+b.id+'" data-k="type"><option value="paragraph" '+(b.type==='paragraph'?'selected':'')+'>Akapit</option><option value="bullets" '+(b.type==='bullets'?'selected':'')+'>Lista kropkowana</option><option value="numbered" '+(b.type==='numbered'?'selected':'')+'>Lista numerowana</option><option value="important" '+(b.type==='important'?'selected':'')+'>Ważne</option><option value="warning" '+(b.type==='warning'?'selected':'')+'>Uważaj</option><option value="remember" '+(b.type==='remember'?'selected':'')+'>Pamiętaj</option><option value="additional" '+(b.type==='additional'?'selected':'')+'>Dodatkowy</option><option value="metric" '+(b.type==='metric'?'selected':'')+'>Statystyka / ocena</option><option value="quote" '+(b.type==='quote'?'selected':'')+'>Cytat</option><option value="whitecard" '+(b.type==='whitecard'?'selected':'')+'>Box ze zdjęciem</option></select><label>Nagłówek</label><input data-b="'+b.id+'" data-k="title" value="'+esc(b.title||'')+'"><label>Treść</label><textarea data-b="'+b.id+'" data-k="body">'+esc(b.body||'')+'</textarea><label class="checkbox"><input data-b="'+b.id+'" data-k="showIcon" type="checkbox" '+(b.showIcon?'checked':'')+'> Ikona po lewej</label>'+(b.showIcon?'<label>Ikona</label><select data-b="'+b.id+'" data-k="icon"><option value="check" '+(b.icon==='check'?'selected':'')+'>Check</option><option value="info" '+(b.icon==='info'?'selected':'')+'>Info</option></select>':'')+'</div>';
 }
 function bindBlockEditors(p){
+  document.querySelectorAll('[data-metric-field]').forEach(x=>x.oninput=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.metricId);
+    if(!b||b.type!=='metric') return;
+    b[x.dataset.metricField]=x.value;
+    x.setCustomValidity(b.mode==='rating'&&x.dataset.metricField==='value'&&metricRatingValue(b)===null?'Wpisz ocenę od 0 do '+b.ratingScale+'.':'');
+    renderPreview();
+  });
+  document.querySelectorAll('[data-metric-mode]').forEach(x=>x.onchange=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.metricMode);
+    if(!b) return;
+    b.mode=x.value;
+    renderEditor();renderPreview();
+  });
+  document.querySelectorAll('[data-metric-scale]').forEach(x=>x.onchange=()=>{
+    const b=p.blocks.find(z=>z.id===x.dataset.metricScale);
+    if(!b) return;
+    b.ratingScale=Number(x.value);
+    renderEditor();renderPreview();
+  });
   document.querySelectorAll('[data-quote-field]').forEach(x=>x.oninput=()=>{
     const b=p.blocks.find(z=>z.id===x.dataset.quoteId);
     if(!b||b.type!=='quote') return;
@@ -532,6 +605,7 @@ $('newProject').onclick=()=>{if(!confirm('Utworzyć nowy projekt?\n\nNiezapisane
 $('format').onchange=e=>setFormat(e.target.value);$('customW').oninput=()=>{if(state.format==='custom')setFormat('custom')};$('customH').oninput=()=>{if(state.format==='custom')setFormat('custom')};
 $('doctorPreset').onclick=()=>{state.preset='doctor';state.palette={...doctorPalette};applyTheme();renderPreview()};$('customPreset').onclick=()=>{state.preset='custom';applyTheme();renderPreview()};
 [['cInk','ink'],['cBody','body'],['cBg','bg'],['cImportant','important'],['cWarning','warning'],['cRemember','remember'],['cAdditional','additional']].forEach(([id,k])=>{$(id).oninput=e=>{if(state.preset==='doctor')return;state.palette[k]=e.target.value;applyTheme();renderPreview()}});
+$('metricPaletteButton').onclick=()=>{const target=current()?.type==='content'?current():state.screens.find(s=>s.type==='content');if(target)addBlockAt('metric',target.id);else alert('Dodaj ekran treści, aby umieścić statystykę lub ocenę.');};
 $('quotePaletteButton').onclick=()=>{const target=current()?.type==='content'?current():state.screens.find(s=>s.type==='content');if(target)addBlockAt('quote',target.id);else alert('Dodaj ekran treści, aby umieścić cytat.');};
 $('addCover').onclick=()=>{const p=coverScreen();state.screens.push(p);state.selected=p.id;render()};$('addContent').onclick=()=>{const p=contentScreen();state.screens.push(p);state.selected=p.id;render()};
 $('materialLogo').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.materialLogo=await readImageFile(f);renderPreview()};
