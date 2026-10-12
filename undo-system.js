@@ -17,6 +17,10 @@
     if(undoStack.length>MAX_HISTORY) undoStack.shift();
     redoStack.length=0;
   }
+  function reset(){
+    undoStack.length=0;
+    redoStack.length=0;
+  }
   function restore(snap,label){
     if(!snap) return;
     restoring=true;
@@ -99,7 +103,7 @@
   document.addEventListener('click',function(e){
     const t=e.target&&e.target.closest?e.target.closest('button'):null;
     if(!t) return;
-    if(t.matches('#addCover,#addContent,#newProject,#removeTemplate,#fillTemplateFromContent,[data-r],[data-apply-suggestion],[data-dismiss-suggestion]')){
+    if(t.matches('#addCover,#addContent,#removeTemplate,#fillTemplateFromContent,[data-r],[data-apply-suggestion],[data-dismiss-suggestion]')){
       checkpoint();
     }
   },true);
@@ -131,5 +135,5 @@
     }
   },true);
 
-  window.pdfMobileUndo={checkpoint,undo,redo};
+  window.pdfMobileUndo={checkpoint,undo,redo,reset};
 })();
