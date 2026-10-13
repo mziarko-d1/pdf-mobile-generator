@@ -9,7 +9,7 @@ export function validateInput(data){
     ids.add(b.id);size+=b.body.length+b.title.length+b.section.length;
   }
   if(size>100000) throw new Error('Materiał jest zbyt długi do jednorazowej analizy AI.');
-  return data;
+  return {title:data.title,audience:data.audience,blocks:data.blocks.map(({id,title,section,body})=>({id,title,section,body}))};
 }
 export function validateOutput(input,output){
   const ids=new Set(input.blocks.map(b=>b.id));
@@ -23,7 +23,7 @@ export function validateOutput(input,output){
   return output;
 }
 export async function classify(input,generate){
-  validateInput(input);
+  input=validateInput(input);
   if(!generate){
     const {generateText,Output,jsonSchema}=await import('ai');
     generate=async batch=>{

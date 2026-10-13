@@ -28,6 +28,7 @@ test('provider failure preserves parsed document',async()=>{
 test('backend validates audience, unique ids, lengths and complete model output',async()=>{
   const {validateInput,validateOutput}=await import('../ai-service/lib/classifier.mjs');
   assert.equal(validateInput(input()).audience,'patient');
+  assert.equal(validateInput({...input(),extra:'ignore'}).extra,undefined);
   for(const data of [{...input(),audience:'other'},{...input(),blocks:[...input().blocks,input().blocks[0]]},{...input(),blocks:[{...input().blocks[0],body:'x'.repeat(6001)}]}]) assert.throws(()=>validateInput(data));
   assert.throws(()=>validateOutput(input(),{classifications:[]}));
 });
