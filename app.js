@@ -195,6 +195,7 @@ function pageFooterHtml(screen,index){
   '</div>';
 }
 function coverScreen(){return{id:uid('p'),type:'cover',heading:'Tytuł materiału',blocks:[]}}
+function closingScreen(){return{id:uid('p'),type:'closing',heading:'Dziękujemy!',text:'',blocks:[]}}
 function contentScreen(){return{id:uid('p'),type:'content',title:'Tytuł ekranu',intro:'Krótki wstęp do treści.',blocks:[newBlock('paragraph')]}}
 function initialState(){const c=coverScreen(),p=contentScreen();return{name:'Nowy materiał',w:390,h:844,format:'mobile',preset:'doctor',palette:{...doctorPalette},template:'',materialLogo:'',pageFooter:defaultPageFooter(),screens:[c,p],selected:c.id}}
 let state=initialState();
@@ -282,6 +283,10 @@ function renderPreview(){
     const pageStyle='width:'+state.w+'px;height:'+state.h+'px;transform:scale('+sc+');background:'+state.palette.bg+';--ink:'+state.palette.ink+';--body:'+state.palette.body+';--important:'+state.palette.important+';--warning:'+state.palette.warning+';--remember:'+state.palette.remember+';--additional:'+state.palette.additional+';';
     const baseBg=p.pdfBackground||state.template||'';
     const bg=baseBg?'<div class="page-bg" style="background-image:url(\''+baseBg+'\')"></div>':'';
+    if(p.type==='closing'){
+      const footer=pageFooterHtml(p,i),footerClass=footer?' has-page-footer':'';
+      return '<div class="page-wrap" draggable="true" data-page-id="'+p.id+'"><div class="page-dragbar"><span>Strona '+(i+1)+' · '+state.w+' × '+state.h+'</span><span>⠿ przeciągnij stronę</span></div><div class="page-stage" style="'+stage+'"><section class="page closing'+footerClass+' '+(p.id===state.selected?'selected-page':'')+'" data-select-page="'+p.id+'" style="'+pageStyle+'"><div class="page-inner"><h2 class="closing-title">'+esc(p.heading||'')+'</h2>'+(p.text?'<div class="closing-text">'+bodyHtml(p.text,'paragraph')+'</div>':'')+'</div>'+footer+'</section></div></div>';
+    }
     if(p.type==='cover'){
       const footer=pageFooterHtml(p,i);
       const footerClass=footer?' has-page-footer':'';
@@ -295,13 +300,19 @@ function renderPreview(){
   bindPreviewDnD();
 }
 function renderScreenList(){
-  $('screenList').innerHTML=state.screens.map((p,i)=>'<div class="screen-row '+(p.id===state.selected?'active':'')+'" draggable="true" data-screen-row="'+p.id+'"><span class="screen-drag">⠿</span><button class="screen-select" data-screen="'+p.id+'">'+(i+1)+'. '+esc(p.type==='cover'?(p.heading||'Okładka'):(p.title||'Treść'))+'</button><button class="danger mini" data-remove-screen="'+p.id+'">×</button></div>').join('');
+  $('screenList').innerHTML=state.screens.map((p,i)=>'<div class="screen-row '+(p.id===state.selected?'active':'')+'" draggable="true" data-screen-row="'+p.id+'"><span class="screen-drag">⠿</span><button class="screen-select" data-screen="'+p.id+'">'+(i+1)+'. '+esc(p.type==='closing'?(p.heading||'Zakończenie'):p.type==='cover'?(p.heading||'Okładka'):(p.title||'Treść'))+'</button><button class="danger mini" data-remove-screen="'+p.id+'">×</button></div>').join('');
   document.querySelectorAll('[data-screen]').forEach(b=>b.onclick=()=>{state.selected=b.dataset.screen;renderScreenList();renderEditor();renderPreview()});
   document.querySelectorAll('[data-remove-screen]').forEach(b=>b.onclick=()=>removeScreen(b.dataset.removeScreen));
   document.querySelectorAll('[data-screen-row]').forEach(row=>{row.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain','page:'+row.dataset.screenRow);row.classList.add('dragging')});row.addEventListener('dragend',()=>row.classList.remove('dragging'));row.addEventListener('dragover',e=>e.preventDefault());row.addEventListener('drop',e=>{e.preventDefault();const d=e.dataTransfer.getData('text/plain');if(d.startsWith('page:'))movePage(d.slice(5),row.dataset.screenRow)})});
 }
 function renderEditor(){
   const p=current(); if(!p){$('editor').innerHTML='';return}
+  if(p.type==='closing'){
+    $('editor').innerHTML='<label for="closingHeading">Podziękowanie</label><textarea id="closingHeading">'+esc(p.heading||'')+'</textarea><label for="closingText">Dodatkowy tekst <span class="muted">opcjonalny</span></label><textarea id="closingText">'+esc(p.text||'')+'</textarea>';
+    $('closingHeading').oninput=e=>{p.heading=e.target.value;renderPreview();renderScreenList()};
+    $('closingText').oninput=e=>{p.text=e.target.value;renderPreview()};
+    return;
+  }
   if(p.type==='cover'){
     $('editor').innerHTML='<label>Tytuł okładki</label><textarea id="coverHeading">'+esc(p.heading||'')+'</textarea>';
     $('coverHeading').oninput=e=>{p.heading=e.target.value;renderPreview();renderScreenList()};return;
@@ -539,9 +550,9 @@ function render(){normalizePageFooter();applyTheme();$('projectName').value=stat
 function removeScreen(id){if(state.screens.length<=1){alert('Projekt musi mieć przynajmniej jeden ekran.');return}state.screens=state.screens.filter(s=>s.id!==id);if(!state.screens.some(s=>s.id===state.selected))state.selected=state.screens[0].id;render()}
 function movePage(sourceId,targetId){if(sourceId===targetId)return;let from=state.screens.findIndex(s=>s.id===sourceId),to=state.screens.findIndex(s=>s.id===targetId);if(from<0||to<0)return;const [item]=state.screens.splice(from,1);if(from<to)to--;state.screens.splice(to,0,item);render()}
 function findScreenAndBlock(blockId){for(const s of state.screens){const i=(s.blocks||[]).findIndex(b=>b.id===blockId);if(i>=0)return{screen:s,index:i,block:s.blocks[i]}}return null}
-function moveBlock(blockId,targetScreenId,targetBlockId){const src=findScreenAndBlock(blockId),target=state.screens.find(s=>s.id===targetScreenId);if(!src||!target||target.type==='cover')return;src.screen.blocks.splice(src.index,1);let idx=targetBlockId?target.blocks.findIndex(b=>b.id===targetBlockId):target.blocks.length;if(idx<0)idx=target.blocks.length;target.blocks.splice(idx,0,src.block);state.selected=target.id;render()}
+function moveBlock(blockId,targetScreenId,targetBlockId){const src=findScreenAndBlock(blockId),target=state.screens.find(s=>s.id===targetScreenId);if(!src||!target||target.type!=='content')return;src.screen.blocks.splice(src.index,1);let idx=targetBlockId?target.blocks.findIndex(b=>b.id===targetBlockId):target.blocks.length;if(idx<0)idx=target.blocks.length;target.blocks.splice(idx,0,src.block);state.selected=target.id;render()}
 function addBlockAt(type,targetScreenId,targetBlockId){
-  const target=state.screens.find(s=>s.id===targetScreenId);if(!target||target.type==='cover')return;
+  const target=state.screens.find(s=>s.id===targetScreenId);if(!target||target.type!=='content')return;
   let b;
   if(type==='image'){if(!pendingImageData)return;b={id:uid('b'),type:'image',src:pendingImageData,alt:pendingImageName||'Obrazek',width:100}}
   else if(type==='imageText'){if(!pendingImageTextData)return;b={id:uid('b'),type:'imageText',src:pendingImageTextData,alt:pendingImageTextName||'Obrazek',title:'Nagłówek',body:'Tutaj wpisz treść.',side:'left',width:45}}
@@ -609,7 +620,15 @@ $('doctorPreset').onclick=()=>{state.preset='doctor';state.palette={...doctorPal
 [['cInk','ink'],['cBody','body'],['cBg','bg'],['cImportant','important'],['cWarning','warning'],['cRemember','remember'],['cAdditional','additional']].forEach(([id,k])=>{$(id).oninput=e=>{if(state.preset==='doctor')return;state.palette[k]=e.target.value;applyTheme();renderPreview()}});
 $('metricPaletteButton').onclick=()=>{const target=current()?.type==='content'?current():state.screens.find(s=>s.type==='content');if(target)addBlockAt('metric',target.id);else alert('Dodaj ekran treści, aby umieścić statystykę lub ocenę.');};
 $('quotePaletteButton').onclick=()=>{const target=current()?.type==='content'?current():state.screens.find(s=>s.type==='content');if(target)addBlockAt('quote',target.id);else alert('Dodaj ekran treści, aby umieścić cytat.');};
-$('addCover').onclick=()=>{const p=coverScreen();state.screens.push(p);state.selected=p.id;render()};$('addContent').onclick=()=>{const p=contentScreen();state.screens.push(p);state.selected=p.id;render()};
+function addEditorScreen(p){
+  const closingIndex=state.screens.findIndex(s=>s.type==='closing');
+  if(p.type!=='closing'&&closingIndex>=0) state.screens.splice(closingIndex,0,p);
+  else state.screens.push(p);
+  state.selected=p.id;render();
+}
+$('addCover').onclick=()=>addEditorScreen(coverScreen());
+$('addContent').onclick=()=>addEditorScreen(contentScreen());
+$('addClosing').onclick=()=>addEditorScreen(closingScreen());
 $('materialLogo').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.materialLogo=await readImageFile(f);renderPreview()};
 $('templateUpload').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;state.template=await templateFromFile(f);renderPreview()};$('removeTemplate').onclick=()=>{state.template='';renderPreview()};
 $('pageFooterToggle').onclick=()=>{

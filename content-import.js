@@ -393,12 +393,13 @@
   function captureLayoutBlueprint(){
     const sourceScreens=Array.isArray(state.screens)?state.screens:[];
     const cover=sourceScreens.find(function(screen){return screen&&screen.type==='cover';});
-    const content=sourceScreens.filter(function(screen){return screen&&screen.type!=='cover';});
+    const content=sourceScreens.filter(function(screen){return screen&&screen.type==='content';});
     if(!cover||!content.length) return null;
 
     return {
       cover:cloneImportValue(cover),
       content:content.map(cloneImportValue),
+      closing:sourceScreens.filter(screen=>screen&&screen.type==='closing').map(cloneImportValue),
       format:state.format,
       w:state.w,
       h:state.h,
@@ -566,6 +567,7 @@
       },'sources_code');
     }
 
+    (blueprint.closing||[]).forEach(page=>{const copy=cloneImportValue(page);copy.id=uid('p');screens.push(copy);});
     state.screens=screens;
     state.selected=cover.id;
     render();
@@ -625,7 +627,7 @@
 
     if(parsed.finalCode){
       let target=screens[screens.length-1];
-      if(!target||target.type==='cover'){
+      if(!target||target.type!=='content'){
         target=makeScreen('Źródła',[],role,'sources_code',false);
         screens.push(target);
       }
@@ -814,7 +816,7 @@
       render();
 
       document.getElementById('projectName').value=state.name;
-      const contentScreens=state.screens.filter(function(s){return s.type!=='cover';}).length;
+      const contentScreens=state.screens.filter(function(s){return s.type==='content';}).length;
       const suggestionCount=state.screens.reduce(function(total,screen){
         return total+(screen.blocks||[]).filter(function(block){return !!block.suggestedBox;}).length;
       },0);

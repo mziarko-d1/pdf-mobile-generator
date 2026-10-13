@@ -300,3 +300,10 @@
 .quote-mark-fallback{display:block;width:100%;height:100%}
 .quote-topic[data-semantic="hcp"] .quote-mark-hcp,.quote-topic[data-semantic="patient"] .quote-mark-patient{display:block}
 .quote-topic[data-semantic="hcp"] .quote-mark-fallback,.quote-topic[data-semantic="patient"] .quote-mark-fallback{display:none}
+
+/* Logo-free closing page, centered like the cover's main message. */
+.closing .page-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px}
+.closing-title{font-size:32px;line-height:1.18;font-weight:800;color:var(--ink);margin:0;max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap}
+.closing-text{font-size:14px;line-height:1.6;color:var(--body);max-width:100%;overflow-wrap:anywhere}
+.closing-text p{margin:0 0 7px}.closing-text p:last-child{margin-bottom:0}
+.screen-page-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}

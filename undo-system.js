@@ -99,7 +99,7 @@
   document.addEventListener('click',function(e){
     const t=e.target&&e.target.closest?e.target.closest('button'):null;
     if(!t) return;
-    if(t.matches('#addCover,#addContent,#newProject,#removeTemplate,#fillTemplateFromContent,[data-r],[data-apply-suggestion],[data-dismiss-suggestion]')){
+    if(t.matches('#addCover,#addContent,#addClosing,#newProject,#removeTemplate,#fillTemplateFromContent,[data-r],[data-apply-suggestion],[data-dismiss-suggestion]')){
       checkpoint();
     }
   },true);
@@ -114,7 +114,7 @@
 
   document.addEventListener('beforeinput',function(e){
     const target=e.target;
-    if(target&&target.closest&&target.closest('[data-metric-field],.metric-description,.metric-emphasis,[data-quote-field],.quote-text,.quote-author-name,.quote-author-role')) checkpoint();
+    if(target&&target.closest&&target.closest('#closingHeading,#closingText,.closing-title,.closing-text,[data-metric-field],.metric-description,.metric-emphasis,[data-quote-field],.quote-text,.quote-author-name,.quote-author-role')) checkpoint();
   },true);
 
   document.addEventListener('keydown',function(e){
