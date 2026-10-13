@@ -1,0 +1,8 @@
+{
+  "name":"doctor-one-pdf-analysis",
+  "private":true,
+  "type":"module",
+  "engines":{"node":">=24"},
+  "scripts":{"test":"node --test ../tests/smart-import.test.cjs"},
+  "dependencies":{"ai":"7.0.138"}
+}

@@ -209,6 +209,20 @@
     logout:logout,
     verify:verifyToken,
     api:githubApi,
+    analyzeContent:async function(payload){
+      if(!user||!token) throw new Error('Zaloguj się jako administrator, aby użyć analizy AI.');
+      const base=(window.DOCTOR_ONE_AI_CONFIG||{}).baseUrl;
+      if(!base) throw new Error('Analiza AI czeka na uruchomienie usługi. Możesz zaimportować treść po wyłączeniu wyróżnień AI.');
+      const endpoint=new URL('/api/analyze',base);
+      if(endpoint.protocol!=='https:') throw new Error('Niepoprawny adres usługi AI.');
+      const response=await fetch(endpoint.href,{
+        method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+        body:JSON.stringify(payload),signal:AbortSignal.timeout(300000)
+      });
+      const result=await response.json();
+      if(!response.ok) throw new Error(result.error||'Analiza AI nie powiodła się.');
+      return result;
+    },
     subscribe:subscribe,
     getConfig:getConfig
   };
