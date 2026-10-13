@@ -131,6 +131,8 @@
       <select id="articleImportMode">
         <option value="full">Pełna treść · bez skracania</option>
       </select>
+      <label><input id="articleImportAI" type="checkbox"> Automatyczne wyróżnienia AI</label>
+      <p id="articleImportAINote" class="import-note">AI dobiera „Ważne”, „Pamiętaj” i „Uważaj” na podstawie znaczenia tekstu. Treść jest wysyłana do usługi AI; nie jest przepisywana.</p>
       <button id="fillTemplateFromContent" class="primary full" type="button">Wypełnij szablon</button>
       <div id="contentImportStatus" class="status">Importer gotowy. Wklej URL albo wybierz PDF.</div>
       <p class="import-note">Pełna treść jest dzielona na edytowalne ekrany bez skracania. Daty publikacji/aktualizacji są pomijane; źródła i kod końcowy zostają.</p>
@@ -255,9 +257,14 @@
     <div id="canvas" class="canvas"></div>
   </main>
 </div>
-<script src="app.js?v=20261013-closing-1"></script>\n<script src="semantic-system.js?v=20261013-closing-1"></script>\n<script src="content-import.js?v=20261013-closing-1"></script>
+<script src="app.js?v=20261013-closing-1"></script>
+<script src="semantic-system.js?v=20261013-closing-1"></script>
+<script src="ai-import-config.js"></script>
+<script src="smart-import.js"></script>
+<script src="content-import.js?v=20261013-closing-1"></script>
 <script src="admin-config.js?v=20261008-1"></script>
 <script src="admin-auth.js?v=20261008-1"></script>
-<script src="template-system.js?v=20261008-4"></script>\n<script src="undo-system.js?v=20261013-closing-1"></script>
+<script src="template-system.js?v=20261008-4"></script>
+<script src="undo-system.js?v=20261013-closing-1"></script>
 </body>
 </html>

@@ -1,0 +1,4 @@
+{
+  "functions": {"api/analyze.mjs": {"maxDuration": 300}},
+  "buildCommand": "node --check api/analyze.mjs"
+}

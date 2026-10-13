@@ -4,6 +4,13 @@
   const templateSelect=document.getElementById('articleImportTemplate');
   const button=document.getElementById('fillTemplateFromContent');
   const status=document.getElementById('contentImportStatus');
+  const aiToggle=document.getElementById('articleImportAI');
+  if(aiToggle){
+    const configured=!!(window.DOCTOR_ONE_AI_CONFIG||{}).baseUrl;
+    aiToggle.checked=configured;
+    aiToggle.disabled=!configured;
+    if(!configured) document.getElementById('articleImportAINote').textContent='Automatyczne wyróżnienia AI czekają na uruchomienie usługi. Import pełnej treści jest dostępny.';
+  }
   if(!urlInput||!pdfInput||!templateSelect||!button||!status) return;
 
   const roleByTemplate={
@@ -444,6 +451,10 @@
     const pieceType=String((piece&&piece.type)||'paragraph');
 
     if(!semanticSlotTypes.includes(slotType)) out.type=pieceType;
+    if(piece&&piece.aiClassification&&['paragraph','bullets','numbered','important','warning','remember','additional'].includes(slotType)){
+      out.type=pieceType;
+      out.aiClassification=piece.aiClassification;
+    }
     out.title=(piece&&piece.title)?piece.title:(semanticSlotTypes.includes(slotType)?String(slot.title||''):'');
     out.body=String((piece&&piece.body)||'');
     out.semanticRole=slot.semanticRole||(piece&&piece.semanticRole)||'inherit';
@@ -779,6 +790,14 @@
     try{
       setStatus(file?'Czytam pełną treść PDF…':'Pobieram wyłącznie treść artykułu…','');
       const parsed=file?await readPdf(file):await fetchArticle(url);
+      let aiCount=null;
+      if(aiToggle&&aiToggle.checked){
+        // Split first: AI evaluates precisely the fragments that will be rendered.
+        parsed.groups.forEach(group=>{group.blocks=(group.blocks||[]).flatMap(expandBlock);});
+        setStatus('AI analizuje znaczenie treści i dobiera wyróżnienia…','');
+        button.textContent='Analizuję treść…';
+        aiCount=await window.PdfImportAI.analyze(parsed,role,payload=>window.DoctorOneAdmin.analyzeContent(payload));
+      }
 
       if(window.pdfMobileUndo&&window.pdfMobileUndo.checkpoint) window.pdfMobileUndo.checkpoint();
 
@@ -820,7 +839,7 @@
       const suggestionCount=state.screens.reduce(function(total,screen){
         return total+(screen.blocks||[]).filter(function(block){return !!block.suggestedBox;}).length;
       },0);
-      const suggestionText=suggestionCount?' Sugestie wyróżnień: '+suggestionCount+'.':'';
+      const suggestionText=aiCount!==null?' AI zastosowało wyróżnienia: '+aiCount+'. Sprawdź je przed publikacją.':(suggestionCount?' Sugestie wyróżnień: '+suggestionCount+'.':'');
       const layoutText=layoutBlueprint?' Zachowano format i styl wybranego szablonu.':'';
       setStatus('Gotowe: '+contentScreens+' ekranów treści + okładka.'+layoutText+' Strony są wypełniane do komfortowej gęstości; typ każdego bloku możesz potem zmienić.'+suggestionText,'ok');
 
