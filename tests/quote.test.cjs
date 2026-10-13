@@ -228,3 +228,15 @@ test('quote has rounded corners, the box shadow and the supplied role-specific i
   assert.equal(await page.locator('.quote-mark-fallback').isVisible(), true);
   assert.equal(await page.locator('.quote-mark-hcp').isVisible(), false);
 });
+
+test('supplied quote icons render even when separate image requests are unavailable', async t => {
+  const page = await editor(t);
+  await page.route('**/assets/quote-*.png', route => route.abort());
+  const id = await addQuote(page);
+  for (const [role, selector] of [['hcp','.quote-mark-hcp'],['patient','.quote-mark-patient']]) {
+    await page.locator(`[data-semantic-block="${id}"]`).selectOption(role);
+    await page.waitForFunction(selector => document.querySelector(selector).naturalWidth === 100, selector);
+    assert.equal(await page.locator(selector).isVisible(), true);
+    assert.equal(await page.locator(selector).getAttribute('src').then(src => src.startsWith('data:image/png;base64,')), true);
+  }
+});
