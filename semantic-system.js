@@ -148,7 +148,7 @@
 /* Inline preview editing v1: edit visible copy without re-rendering the canvas while typing. */
 (function(){
   function inlineText(el){
-    return String(el.innerText||'').replace(/\u00a0/g,' ').replace(/\r/g,'').trimEnd();
+    return String((el.dataset.inlineKind==='quote-role'?el.textContent:el.innerText)||'').replace(/\u00a0/g,' ').replace(/\r/g,'').trimEnd();
   }
   function inlineScreenFor(el){
     const page=el.closest('[data-select-page]');
@@ -174,7 +174,11 @@
   function inlineSyncBlockField(block,key,value){
     if(!block) return;
     let input=null;
-    if(block.type==='imageText'){
+    if(block.type==='metric'){
+      input=document.querySelector('[data-metric-id="'+block.id+'"][data-metric-field="'+key+'"]');
+    }else if(block.type==='quote'){
+      input=document.querySelector('[data-quote-id="'+block.id+'"][data-quote-field="'+key+'"]');
+    }else if(block.type==='imageText'){
       input=document.querySelector(key==='title'?'[data-imgtitle="'+block.id+'"]':'[data-imgbody="'+block.id+'"]');
     }else{
       input=document.querySelector('[data-b="'+block.id+'"][data-k="'+key+'"]');
@@ -241,7 +245,15 @@
       }else{
         const block=inlineBlockFor(screen,el);
         if(!block) return;
-        if(kind==='block-title'){
+        if(kind==='metric-body'||kind==='metric-emphasis'){
+          const key=kind==='metric-body'?'body':'emphasis';
+          block[key]=value;
+          inlineSyncBlockField(block,key,value);
+        }else if(kind==='quote-body'||kind==='quote-author'||kind==='quote-role'){
+          const key={"quote-body":'body',"quote-author":'author',"quote-role":'authorRole'}[kind];
+          block[key]=value;
+          inlineSyncBlockField(block,key,value);
+        }else if(kind==='block-title'){
           block.title=value;
           inlineSyncBlockField(block,'title',value);
         }else if(kind==='block-body'){
@@ -257,6 +269,11 @@
     });
   }
   function enableInlinePreviewEditing(){
+    document.querySelectorAll('.metric-description').forEach(el=>inlineBind(el,'metric-body'));
+    document.querySelectorAll('.metric-emphasis').forEach(el=>inlineBind(el,'metric-emphasis'));
+    document.querySelectorAll('.quote-text').forEach(el=>inlineBind(el,'quote-body'));
+    document.querySelectorAll('.quote-author-name').forEach(el=>inlineBind(el,'quote-author'));
+    document.querySelectorAll('.quote-author-role').forEach(el=>inlineBind(el,'quote-role'));
     document.querySelectorAll('.cover-title').forEach(el=>inlineBind(el,'cover'));
     document.querySelectorAll('.page:not(.cover) .page-title').forEach(el=>inlineBind(el,'title'));
     document.querySelectorAll('.page:not(.cover) .page-intro').forEach(el=>inlineBind(el,'intro'));
@@ -365,3 +382,4 @@
 
   renderEditor();
 })();
+
