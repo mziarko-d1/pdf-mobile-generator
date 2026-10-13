@@ -167,7 +167,7 @@
     renderEditor();
   }
   function inlineSyncPageField(kind,value){
-    const map={cover:'coverHeading',title:'pageTitle',intro:'pageIntro'};
+    const map={cover:'coverHeading',title:'pageTitle',intro:'pageIntro',closing:'closingHeading','closing-text':'closingText'};
     const input=document.getElementById(map[kind]);
     if(input) input.value=value;
   }
@@ -232,7 +232,11 @@
       const screen=inlineScreenFor(el);
       if(!screen) return;
       const value=inlineText(el);
-      if(kind==='cover'){
+      if(kind==='closing'){
+        screen.heading=value;inlineSyncPageField('closing',value);renderScreenList();
+      }else if(kind==='closing-text'){
+        screen.text=value;inlineSyncPageField('closing-text',value);
+      }else if(kind==='cover'){
         screen.heading=value;
         inlineSyncPageField('cover',value);
       }else if(kind==='title'){
@@ -269,6 +273,8 @@
     });
   }
   function enableInlinePreviewEditing(){
+    document.querySelectorAll('.closing-title').forEach(el=>inlineBind(el,'closing'));
+    document.querySelectorAll('.closing-text').forEach(el=>inlineBind(el,'closing-text'));
     document.querySelectorAll('.metric-description').forEach(el=>inlineBind(el,'metric-body'));
     document.querySelectorAll('.metric-emphasis').forEach(el=>inlineBind(el,'metric-emphasis'));
     document.querySelectorAll('.quote-text').forEach(el=>inlineBind(el,'quote-body'));
