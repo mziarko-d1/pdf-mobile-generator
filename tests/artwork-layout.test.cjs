@@ -27,3 +27,19 @@ test('link rectangles cover background buttons and account for text padding',()=
  assert.deepEqual(linkRect({kind:'link',x:20,y:40,width:180,height:30},30),{x:20,y:40,width:180,height:30});
  assert.deepEqual(linkRect({kind:'text',x:20,y:40,width:100,fontSize:10,linkPadding:5},15),{x:15,y:25,width:110,height:25});
 });
+const {resizeElement,removalPlan}=require('../artwork-layout.js');
+test('resizing text rewraps by width without scaling type; vertical space and bounds are preserved',()=>{
+ const el={...line('a','Text',20,50),fit:true};
+ const r=resizeElement(el,'e',40,0,{width:400,height:600},30);
+ assert.equal(r.width,140);assert.equal(r.fontSize,10);assert.equal(r.fit,false);assert.equal(r.layoutEdited,true);
+ assert.equal(resizeElement(el,'s',0,40,{width:400,height:600},30).boxHeight,70);
+ const left=resizeElement(el,'w',-100,0,{width:400,height:600},30);assert.equal(left.x,0);assert.equal(left.width,120);
+ const move=resizeElement(el,'move',1000,-1000,{width:400,height:600},30);assert.equal(move.x,300);assert.equal(move.y,10);
+ assert.deepEqual(el,line('a','Text',20,50));
+});
+test('compact deletion closes its own column and stops at full-width barriers',()=>{
+ const els=[line('a','Delete',20,50),line('b','Next',20,90),line('c','Below',20,130),line('other','Other column',220,90),{...line('barrier','Full width',20,180),width:300},line('footer','Keep',20,220)];
+ assert.deepEqual(removalPlan(els,'a',()=>20),{shift:40,ids:['b','c']});
+ assert.deepEqual(removalPlan([...els,line('overlap','Overlapping',20,55)],'a',()=>20),{shift:0,ids:[]});
+ assert.deepEqual(removalPlan([{id:'hotspot',kind:'link',x:20,y:40,width:100},...els],'hotspot',()=>20),{shift:0,ids:[]});
+});

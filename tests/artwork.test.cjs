@@ -227,3 +227,60 @@ test('unsafe artwork links cannot navigate or enter the exported PDF',async t=>{
  const message=await page.evaluate(async()=>{try{await makeEditablePdf();return '';}catch(error){return error.message;}});
  assert.match(message,/nieprawidłowy link/);
 });
+
+test('mouse resize and move use preview scale, cancel safely and create one Undo step; compact deletion preserves other columns',async t=>{
+ const page=await editor(t);
+ await page.setViewportSize({width:1450,height:1200});
+ await page.evaluate(()=>{
+   const text=(id,x,y,width=160)=>({id,kind:'text',text:'A paragraph that wraps when the text frame becomes narrower.',x,y,width,fontSize:12,lineHeight:1.5,color:'#1d1e3c',fit:false});
+   state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'dragtest',type:'artwork',title:'Drag test',blocks:[],artwork:{version:2,width:400,height:600,background:'',elements:[text('first',30,70),text('next',30,200),text('other',230,200,140),{id:'picture',kind:'image',x:30,y:290,width:160,height:50,src:'',text:'Image'},{...text('barrier',30,410,340)},text('footer',30,510)]}}],selected:'dragtest',artworkFonts:{}};render();
+ });
+ await page.locator('#artworkSelect').selectOption('first');
+ await page.locator('.artwork-page').scrollIntoViewIfNeeded();
+ const original=await snapshot(page);
+ const scale=(await page.locator('.artwork-page').boundingBox()).width/400;
+ async function drag(selector,dx,dy,cancel=false){
+   const box=await page.locator(selector).boundingBox();
+   await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+   await page.mouse.move(box.x+box.width/2+dx*scale,box.y+box.height/2+dy*scale,{steps:8});
+   if(cancel)await page.keyboard.press('Escape');
+   await page.mouse.up();
+ }
+ await drag('[data-artwork-resize="e"]',-60,0);
+ const resized=await snapshot(page);
+ assert.ok(Math.abs(await page.evaluate(()=>state.screens[0].artwork.elements[0].width)-100)<2);
+ assert.ok(await page.evaluate(()=>PdfArtwork.linesFor(state.screens[0].artwork.elements[0]).length>=4));
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),original);
+ await shortcut(page,'Control+y');assert.equal(await snapshot(page),resized);
+ await drag('[data-artwork-resize="se"]',20,40,true);assert.equal(await snapshot(page),resized);
+ await drag('[data-artwork-resize="s"]',0,50);
+ assert.ok(await page.evaluate(()=>state.screens[0].artwork.elements[0].boxHeight>100));
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),resized);
+ await drag('[data-artwork-id="first"]',15,20);
+ assert.ok(Math.abs(await page.evaluate(()=>state.screens[0].artwork.elements[0].x)-45)<2);
+ assert.ok(Math.abs(await page.evaluate(()=>state.screens[0].artwork.elements[0].y)-90)<2);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),resized);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),original);
+ assert.match(await page.locator('#artworkDeleteCompact').textContent(),/\(2\)/);
+ await page.locator('#artworkDeleteCompact').click();
+ const compacted=await page.evaluate(()=>state.screens[0].artwork.elements);
+ assert.equal(compacted.find(e=>e.id==='next').y,70);
+ assert.equal(compacted.find(e=>e.id==='picture').y,160);
+ assert.equal(compacted.find(e=>e.id==='other').y,200);
+ assert.equal(compacted.find(e=>e.id==='barrier').y,410);
+ assert.equal(compacted.find(e=>e.id==='footer').y,510);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),original);
+ await shortcut(page,'Control+y');assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements.length),5);
+ await page.locator('#artworkSelect').selectOption('picture');
+ const beforeDelete=await snapshot(page);
+ await page.locator('#artworkDelete').click();assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements.some(e=>e.id==='picture')),false);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),beforeDelete);
+ await page.locator('#artworkSelect').selectOption('next');
+ await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}'});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await page.waitForFunction(()=>[...document.querySelectorAll('.artwork-sheet')].every(image=>image.complete));
+ await mkdir(path.join(root,'artifacts'),{recursive:true});
+ await page.screenshot({clip:await page.locator('.artwork-page').boundingBox(),path:path.join(root,'artifacts','artwork-resize-handles.png')});
+ const roundTrip=await page.evaluate(async()=>{const expected=JSON.stringify(state),bytes=await makeEditablePdf();state=initialState();render();return await openProjectPdfBytes(bytes.slice().buffer)&&JSON.stringify(state)===expected;});
+ assert.equal(roundTrip,true);
+});

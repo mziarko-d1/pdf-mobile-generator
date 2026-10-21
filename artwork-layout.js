@@ -46,6 +46,42 @@
     const padding=Math.max(0,Math.min(100,Number(element.linkPadding)||0));
     return {x:element.x-padding,y:element.y-(element.kind==='text'?Number(element.fontSize)||12:0)-padding,width:Number(element.width)+padding*2,height:Number(height)+padding*2};
   }
-  const api={safeLink,groupElements,linkRect};
+  function bounds(element,height){
+    return {x:Number(element.x)||0,y:(Number(element.y)||0)-(element.kind==='text'?Number(element.fontSize)||12:0),width:Number(element.width)||1,height};
+  }
+  function resizeElement(element,handle,dx,dy,art,height){
+    const result={...element},box=bounds(element,height),min=12;
+    if(handle==='move'){
+      result.x=Math.max(0,Math.min(Math.max(0,art.width-box.width),box.x+dx));
+      result.y=Math.max(0,Math.min(Math.max(0,art.height-box.height),box.y+dy))+(element.kind==='text'?Number(element.fontSize)||12:0);
+      return result;
+    }
+    if(handle.includes('e'))result.width=Math.max(min,Math.min(art.width-box.x,box.width+dx));
+    if(handle.includes('w')){
+      result.x=Math.max(0,Math.min(box.x+box.width-min,box.x+dx));
+      result.width=box.width+box.x-result.x;
+    }
+    if(handle.includes('s'))result[element.kind==='text'?'boxHeight':'height']=Math.max(min,Math.min(art.height-box.y,box.height+dy));
+    if(element.kind==='text'&&(handle.includes('e')||handle.includes('w'))){result.fit=false;result.layoutEdited=true;}
+    return result;
+  }
+  // Only wholly contained elements below the removed box are in this column.
+  // Stop at a crossing/full-width element; never pull later content through it.
+  function removalPlan(elements,id,heightOf){
+    const target=elements.find(e=>e.id===id);if(!target||target.kind==='link')return {shift:0,ids:[]};
+    const box=bounds(target,heightOf(target)),bottom=box.y+box.height,tolerance=2;
+    const below=elements.filter(e=>e!==target).map(e=>({element:e,box:bounds(e,heightOf(e))}));
+    const overlaps=b=>b.x<box.x+box.width-.1&&b.x+b.width>box.x+.1;
+    const inside=b=>b.x>=box.x-tolerance&&b.x+b.width<=box.x+box.width+tolerance;
+    if(below.some(({box:b})=>overlaps(b)&&b.y<bottom-.1&&b.y+b.height>box.y+.1))return {shift:0,ids:[]};
+    const candidates=below.filter(({box:b})=>overlaps(b)&&b.y>=bottom-.1).sort((a,b)=>a.box.y-b.box.y);
+    const barrier=candidates.find(({box:b,element:e})=>!inside(b)||e.rotation);
+    const stop=barrier?barrier.box.y:Infinity;
+    const moving=candidates.filter(({box:b,element:e})=>inside(b)&&!e.rotation&&b.y+b.height<=stop+.1);
+    if(!moving.length)return {shift:0,ids:[]};
+    // Move the next block to the removed block's top, closing its trailing gap too.
+    return {shift:Math.max(0,moving[0].box.y-box.y),ids:moving.map(({element:e})=>e.id)};
+  }
+  const api={safeLink,groupElements,linkRect,bounds,resizeElement,removalPlan};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ArtworkLayout=api;
 })(typeof window==='undefined'?globalThis:window);

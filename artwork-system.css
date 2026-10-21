@@ -10,3 +10,12 @@
 
 .artwork-hit.is-link{outline:1px dashed #8494c0;background:rgba(132,148,192,.05)}
 #artworkLink{width:100%;border:1px solid #E2E5ED;border-radius:12px;padding:10px}
+
+.artwork-hit{touch-action:none;cursor:move}
+.artwork-selection{position:absolute;pointer-events:none;outline:1.5px solid #636fa7;z-index:4}
+.artwork-resize{position:absolute;width:14px;height:14px;min-width:14px;min-height:14px;padding:0;margin:0;border:2px solid #636fa7;border-radius:3px;background:white;box-shadow:0 1px 3px #0002;pointer-events:auto;touch-action:none}
+.artwork-resize:hover,.artwork-resize:focus-visible{background:#d9e0ff;outline:2px solid #fff}
+.artwork-resize-w{left:0;top:50%;transform:translate(-50%,-50%);cursor:ew-resize}
+.artwork-resize-e{left:100%;top:50%;transform:translate(-50%,-50%);cursor:ew-resize}
+.artwork-resize-s{left:50%;top:100%;transform:translate(-50%,-50%);cursor:ns-resize}
+.artwork-resize-se{left:100%;top:100%;transform:translate(-50%,-50%);cursor:nwse-resize}

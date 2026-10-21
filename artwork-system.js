@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  let selectedId='';
+  let selectedId='',gesture=null;
   const loadedFonts=new Map();
   const escapeXml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const number=(value,fallback=0,min=-10000,max=10000)=>Math.max(min,Math.min(max,Number.isFinite(Number(value))?Number(value):fallback));
@@ -13,7 +13,7 @@
   const selected=page=>(page.artwork.elements||[]).find(e=>e.id===selectedId);
   const fontFamily=element=>element.font?family(element.font):'Arial';
   const measure=document.createElement('canvas').getContext('2d');
-  const {safeLink,groupElements,linkRect}=window.ArtworkLayout;
+  const {safeLink,groupElements,linkRect,bounds,resizeElement,removalPlan}=window.ArtworkLayout;
   const originalLayout=element=>element.originalLines?.length&&element.text===element.originalText&&!element.layoutEdited;
   const textWidth=(text,element)=>measure.measureText(glyphText(text,(state.artworkFonts||{})[element.font])).width+Math.max(0,[...text].length-1)*number(element.letterSpacing,0,-20,100);
   function linesFor(element){
@@ -39,8 +39,8 @@
   }
   function elementHeight(element){
     if(element.kind!=='text')return number(element.height,32,1);
-    if(originalLayout(element))return Math.max(...element.originalLines.map(l=>number(l.y)+number(l.fontSize,12)*1.3));
-    return Math.max(number(element.fontSize,12)*1.3,linesFor(element).length*number(element.fontSize,12)*number(element.lineHeight,1.5,.5,5));
+    if(originalLayout(element))return Math.max(number(element.boxHeight,0,0),...element.originalLines.map(l=>number(l.y)+number(l.fontSize,12)*1.3));
+    return Math.max(number(element.boxHeight,0,0),number(element.fontSize,12)*1.3,linesFor(element).length*number(element.fontSize,12)*number(element.lineHeight,1.5,.5,5));
   }
   function glyphText(text,font){
     return [...text].map(ch=>(font?.map||{})[ch]||ch).join('');
@@ -98,6 +98,7 @@
   }
   const basePreview=renderPreview;
   renderPreview=function(){
+    if(gesture)return;
     basePreview();ensureFonts();
     document.querySelectorAll('.artwork-page').forEach(node=>{
       const page=state.screens.find(p=>p.id===node.dataset.selectPage),art=page.artwork;
@@ -106,12 +107,73 @@
         const fs=number(element.fontSize,12,1,300),height=elementHeight(element);
         return '<button type="button" class="artwork-hit '+(selectedId===element.id&&state.selected===page.id?'is-selected':'')+(element.kind==='link'?' is-link':'')+'" data-artwork-id="'+escapeXml(element.id)+'" aria-label="Edytuj: '+escapeXml((element.text||'Obrazek').slice(0,90))+'" style="left:'+(number(element.x)*sx)+'px;top:'+((number(element.y)-(element.kind==='text'?fs:0))*sy)+'px;width:'+(number(element.width,100,1)*sx)+'px;height:'+(height*sy)+'px"></button>';
       }).join('');
+      const active=selected(page);
+      if(active&&state.selected===page.id)drawHandles(node,active,art);
       node.querySelectorAll('.artwork-hit').forEach(hit=>{
         hit.onclick=e=>{e.stopPropagation();state.selected=page.id;selectedId=hit.dataset.artworkId;renderScreenList();renderEditor();renderPreview();};
+        hit.onpointerdown=e=>startGesture(e,page,hit.dataset.artworkId,'move');
         hit.ondragstart=e=>{e.preventDefault();e.stopPropagation();};
       });
     });
   };
+  function drawHandles(node,element,art){
+    node.querySelector('.artwork-selection')?.remove();
+    const box=bounds(element,elementHeight(element)),sx=state.w/art.width,sy=state.h/art.height;
+    const overlay=document.createElement('div');overlay.className='artwork-selection';
+    Object.assign(overlay.style,{left:box.x*sx+'px',top:box.y*sy+'px',width:box.width*sx+'px',height:box.height*sy+'px'});
+    const handles=element.rotation?[]:[['w','Zmień szerokość z lewej'],['e','Zmień szerokość z prawej'],['s','Zmień wysokość ramki'],['se','Zmień rozmiar ramki']];
+    overlay.innerHTML=handles.map(([handle,label])=>'<button type="button" class="artwork-resize artwork-resize-'+handle+'" data-artwork-resize="'+handle+'" aria-label="'+label+'" title="'+label+'"></button>').join('');
+    node.querySelector('.artwork-hit-layer').append(overlay);
+    overlay.querySelectorAll('button').forEach(button=>{
+      button.onpointerdown=e=>startGesture(e,state.screens.find(p=>p.id===node.dataset.selectPage),element.id,button.dataset.artworkResize);
+      button.onclick=e=>e.stopPropagation();button.ondragstart=e=>{e.preventDefault();e.stopPropagation();};
+      button.onkeydown=e=>{
+        const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+        if(!delta)return;e.preventDefault();e.stopPropagation();checkpoint();
+        Object.assign(element,resizeElement(element,button.dataset.artworkResize,delta[0]*(e.shiftKey?10:1),delta[1]*(e.shiftKey?10:1),art,elementHeight(element)));
+        renderEditor();renderPreview();
+        document.querySelector('[data-select-page="'+CSS.escape(state.selected)+'"] [data-artwork-resize="'+button.dataset.artworkResize+'"]')?.focus();
+      };
+    });
+  }
+  function startGesture(event,page,id,handle){
+    if(event.button!==0||gesture||!page)return;
+    event.preventDefault();event.stopPropagation();
+    state.selected=page.id;selectedId=id;renderScreenList();renderEditor();renderPreview();
+    const element=selected(page),art=page.artwork,originalState=state;
+    if(!element||element.rotation)return;
+    const node=[...document.querySelectorAll('.artwork-page')].find(n=>n.dataset.selectPage===page.id);
+    const rect=node.getBoundingClientRect(),origin={x:event.clientX,y:event.clientY},original={...element};
+    const height=elementHeight(element),pointerId=event.pointerId;
+    let draft=original,moved=false;
+    gesture={cancel:()=>finish(false)};
+    node.setPointerCapture(pointerId);
+    function move(e){
+      if(e.pointerId!==pointerId)return;
+      const px=e.clientX-origin.x,py=e.clientY-origin.y;
+      if(!moved&&Math.hypot(px,py)<3)return;
+      moved=true;e.preventDefault();
+      draft=resizeElement(original,handle,px*art.width/rect.width,py*art.height/rect.height,art,height);
+      node.querySelector('.artwork-sheet').src=svgUrl({...page,artwork:{...art,elements:art.elements.map(el=>el===element?draft:el)}});
+      const hit=[...node.querySelectorAll('.artwork-hit')].find(n=>n.dataset.artworkId===id),box=bounds(draft,elementHeight(draft));
+      Object.assign(hit.style,{left:box.x*state.w/art.width+'px',top:box.y*state.h/art.height+'px',width:box.width*state.w/art.width+'px',height:box.height*state.h/art.height+'px'});
+      drawHandles(node,draft,art);
+    }
+    function finish(commit){
+      document.removeEventListener('pointermove',move);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',cancel);document.removeEventListener('keydown',key,true);window.removeEventListener('blur',cancel);
+      if(node.hasPointerCapture(pointerId))node.releasePointerCapture(pointerId);
+      gesture=null;
+      if(commit&&moved&&state===originalState&&art.elements.includes(element)&&JSON.stringify(draft)!==JSON.stringify(original)){checkpoint();Object.assign(element,draft);}
+      renderEditor();renderPreview();
+      // Pointer capture ends before click dispatch: don't select an underlying block.
+      const suppress=e=>{e.stopPropagation();e.preventDefault();};
+      document.addEventListener('click',suppress,true);setTimeout(()=>document.removeEventListener('click',suppress,true),0);
+    }
+    function up(e){if(e.pointerId===pointerId)finish(true);}
+    function cancel(){finish(false);}
+    function key(e){if(e.key==='Escape'||((e.ctrlKey||e.metaKey)&&['z','y'].includes(e.key.toLowerCase()))){e.preventDefault();e.stopImmediatePropagation();finish(false);}}
+    document.addEventListener('pointermove',move,{passive:false});document.addEventListener('pointerup',up);document.addEventListener('pointercancel',cancel);document.addEventListener('keydown',key,true);window.addEventListener('blur',cancel);
+  }
   const baseEditor=renderEditor;
   renderEditor=function(){
     const page=current();
@@ -119,11 +181,18 @@
     const fields=page.artwork.elements||[];
     if(!selected(page)) selectedId=fields[0]?.id||'';
     const el=selected(page);
-    $('editor').innerHTML='<div class="brand-note">Teksty są edytowalne. Ilustracje, logo i dekoracje oryginału pozostają w tle. Kliknij tekst na stronie albo wybierz go poniżej. Zmiana długiego tekstu może wymagać korekty szerokości lub rozmiaru.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button></div><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea><div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
+    const compact=el?removalPlan(fields,el.id,elementHeight):{shift:0,ids:[]};
+    $('editor').innerHTML='<div class="brand-note">Kliknij blok na stronie. Przeciągnij jego środek, aby go przesunąć, lub uchwyt ramki, aby zmienić rozmiar. Tekst zawija się do szerokości ramki; jej wysokość rośnie, jeśli treść potrzebuje więcej miejsca. Esc anuluje przeciąganie. Ilustracje i dekoracje oryginału są częścią wspólnego tła.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button><button type="button" id="artworkDeleteCompact" class="mini secondary" '+(!compact.ids.length?'disabled':'')+'>Usuń i dosuń poniżej ('+compact.ids.length+')</button></div><p class="import-note">Dosuwanie obejmuje osobne elementy w tej samej kolumnie, do najbliższego bloku przecinającego kolumnę. Wspólne tło pozostaje nieruchome. Ilustracji zapisanych w tle nie usuniesz osobno; obrazki dodane tutaj możesz usuwać.</p><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea><div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['boxHeight','Wysokość ramki (min.)'],['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
     $('artworkSelect').onchange=e=>{selectedId=e.target.value;renderEditor();renderPreview();};
     $('artworkAddText').onclick=()=>{checkpoint();const field={id:uid('art'),kind:'text',text:'Nowy tekst',x:32,y:60,width:300,fontSize:14,lineHeight:1.5,color:'#1d1e3c',fit:false};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
     $('artworkAddLink').onclick=()=>{checkpoint();const field={id:uid('link'),kind:'link',text:'Obszar linku',link:'',x:32,y:page.artwork.height-70,width:240,height:32};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
     $('artworkDelete').onclick=()=>{checkpoint();page.artwork.elements=fields.filter(e=>e.id!==selectedId);selectedId='';renderEditor();renderPreview();};
+    $('artworkDeleteCompact').onclick=()=>{
+      const plan=removalPlan(fields,selectedId,elementHeight);if(!plan.ids.length)return;
+      checkpoint();page.artwork.elements=fields.filter(e=>e.id!==selectedId);
+      page.artwork.elements.forEach(e=>{if(plan.ids.includes(e.id))e.y-=plan.shift;});
+      selectedId='';renderEditor();renderPreview();
+    };
     $('artworkImage').onchange=async e=>{
       const file=e.target.files?.[0];if(!file) return;
       const src=await readImageFile(file);
