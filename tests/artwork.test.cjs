@@ -364,3 +364,40 @@ test('coloring tracked original text keeps glyph coordinates and selection bound
  assert.equal(await page.evaluate(()=>new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml').querySelector('text > tspan').getAttribute('x')),x);
  assert.deepEqual(await page.evaluate(()=>state.screens[0].artwork.elements[0].textStyles),[]);
 });
+
+test('clicking a source graphic exposes an on-canvas replace action without moving the frame',async t=>{
+ const page=await editor(t);
+ const image=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=60;c.height=60;c.getContext('2d').fillRect(0,0,60,60);return c.toDataURL();});
+ await page.evaluate(src=>{state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'graphics',type:'artwork',blocks:[],artwork:{version:3,width:400,height:600,elements:[{id:'icon',kind:'image',text:'Ikona',src,x:60,y:120,width:50,height:50,sourceGraphic:true}]}}],selected:'graphics'};render();},image);
+ await page.locator('[data-artwork-id="icon"]').click();
+ assert.equal(await page.locator('.artwork-swap').textContent(),'Podmień');
+ const before=await snapshot(page);
+ const picker=page.waitForEvent('filechooser');await page.locator('.artwork-swap').click();const chooser=await picker;
+ const next=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=40;c.height=70;const ctx=c.getContext('2d');ctx.fillStyle='#e35a20';ctx.fillRect(0,0,40,70);return c.toDataURL().split(',')[1];});
+ await chooser.setFiles({name:'new-icon.png',mimeType:'image/png',buffer:Buffer.from(next,'base64')});
+ await page.waitForFunction(()=>document.querySelector('#artworkImageStatus').textContent.startsWith('Obrazek podmieniony'));
+ assert.deepEqual(await page.evaluate(()=>{const e=state.screens[0].artwork.elements[0];return [e.x,e.y,e.width,e.height];}),[60,120,50,50]);
+ assert.notEqual(await snapshot(page),before);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),before);
+});
+test('graphics migration preserves edited text and custom images, matches exact backgrounds and supports Undo',async t=>{
+ const page=await editor(t);
+ const fixture=await page.evaluate(async()=>{
+   const c=document.createElement('canvas');c.width=100;c.height=100;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,100,100);const plain=c.toDataURL();ctx.fillStyle='red';ctx.fillRect(10,20,30,40);const original=c.toDataURL();
+   const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(original)))].map(n=>n.toString(16).padStart(2,'0')).join('');
+   state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'old',type:'artwork',blocks:[],artwork:{version:2,width:400,height:600,background:original,elements:[{id:'edited',kind:'text',text:'Already edited',x:30,y:80,width:200,fontSize:14,color:'#1d1e3c',textStyles:[{start:0,end:7,bold:true}]},{id:'custom',kind:'image',src:plain,x:150,y:200,width:100,height:100}]}}],selected:'old'};render();
+   return {project:{screens:[{artwork:{version:3,width:400,height:600,background:plain,previousBackgroundSha256:hash,elements:[{id:'source-icon',kind:'image',sourceGraphic:true,src:original,text:'Source icon',x:40,y:120,width:120,height:240}]}}]}};
+ });
+ await page.route('**/templates/index.json',route=>route.fulfill({json:{templates:[{file:'templates/synthetic-upgrade.json',graphicsVersion:1}]}}));
+ await page.route('**/templates/synthetic-upgrade.json',route=>route.fulfill({json:fixture}));
+ const before=await snapshot(page);
+ await page.locator('#artworkEnableGraphics').click();
+ await page.waitForFunction(()=>state.screens[0].artwork.version===3);
+ const after=await snapshot(page),data=await page.evaluate(()=>state.screens[0].artwork.elements);
+ assert.equal(data.length,3);assert.equal(data[0].text,'Already edited');assert.equal(data[0].textStyles[0].bold,true);assert.equal(data[1].id,'custom');assert.notEqual(data[2].id,'source-icon');
+ assert.equal(await page.evaluate(()=>PdfArtwork.enableSourceGraphics()),0);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),before);
+ await shortcut(page,'Control+y');assert.equal(await snapshot(page),after);
+ await page.evaluate(()=>{state.screens[0].artwork.version=2;state.screens[0].artwork.background='';render();});
+ const unmatched=await snapshot(page);assert.equal(await page.evaluate(()=>PdfArtwork.enableSourceGraphics()),0);assert.equal(await snapshot(page),unmatched);
+});

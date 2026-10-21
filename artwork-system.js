@@ -167,7 +167,12 @@
     const handles=element.rotation?[]:[['w','Zmień szerokość z lewej'],['e','Zmień szerokość z prawej'],['s','Zmień wysokość ramki'],['se','Zmień rozmiar ramki']];
     overlay.innerHTML=handles.map(([handle,label])=>'<button type="button" class="artwork-resize artwork-resize-'+handle+'" data-artwork-resize="'+handle+'" aria-label="'+label+'" title="'+label+'"></button>').join('');
     node.querySelector('.artwork-hit-layer').append(overlay);
-    overlay.querySelectorAll('button').forEach(button=>{
+    if(element.kind==='image'){
+      const swap=document.createElement('button');swap.type='button';swap.className='artwork-swap';swap.textContent='Podmień';swap.setAttribute('aria-label','Podmień wybrany obrazek');
+      swap.onpointerdown=e=>e.stopPropagation();swap.ondragstart=e=>{e.preventDefault();e.stopPropagation();};
+      swap.onclick=e=>{e.stopPropagation();$('artworkReplaceImage')?.click();};overlay.append(swap);
+    }
+    overlay.querySelectorAll('[data-artwork-resize]').forEach(button=>{
       button.onpointerdown=e=>startGesture(e,state.screens.find(p=>p.id===node.dataset.selectPage),element.id,button.dataset.artworkResize);
       button.onclick=e=>e.stopPropagation();button.ondragstart=e=>{e.preventDefault();e.stopPropagation();};
       button.onkeydown=e=>{
@@ -225,7 +230,13 @@
     if(!selected(page)) selectedId=fields[0]?.id||'';
     const el=selected(page);
     const compact=el?removalPlan(fields,el.id,elementHeight):{shift:0,ids:[]};
-    $('editor').innerHTML='<div class="brand-note">Kliknij blok na stronie. Przeciągnij jego środek, aby go przesunąć, lub uchwyt ramki, aby zmienić rozmiar. Tekst zawija się do szerokości ramki; jej wysokość rośnie, jeśli treść potrzebuje więcej miejsca. Esc anuluje przeciąganie. Ilustracje i dekoracje oryginału są częścią wspólnego tła.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button><button type="button" id="artworkDeleteCompact" class="mini secondary" '+(!compact.ids.length?'disabled':'')+'>Usuń i dosuń poniżej ('+compact.ids.length+')</button></div><p class="import-note">Dosuwanie obejmuje osobne elementy w tej samej kolumnie, do najbliższego bloku przecinającego kolumnę. Wspólne tło pozostaje nieruchome. Ilustracji zapisanych w tle nie usuniesz osobno; obrazki dodane tutaj możesz usuwać.</p><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea>'+(el.kind==='text'?'<div class="artwork-format-toolbar" role="group" aria-label="Formatowanie zaznaczenia"><button type="button" id="artworkBold" class="mini secondary" aria-label="Pogrub zaznaczenie" aria-pressed="false"><b>B</b></button><label>Kolor zaznaczenia<input type="color" id="artworkSelectionColor" value="#1d1e3c"></label><button type="button" id="artworkApplyColor" class="mini secondary">Zastosuj kolor</button><button type="button" id="artworkClearFormat" class="mini ghost">Wyczyść formatowanie</button></div><p id="artworkSelectionNote" class="import-note" aria-live="polite">Zaznacz fragment tekstu powyżej, a następnie wybierz formatowanie. Efekt zobaczysz na stronie.</p>':'')+(el.kind==='image'?'<label>Podmień wybrany obrazek<input type="file" id="artworkReplaceImage" accept="image/png,image/jpeg,image/webp"></label><p class="import-note">Nowy obrazek zachowa ramkę, położenie i link wybranego elementu.</p><p id="artworkImageStatus" class="status" role="status"></p>':'')+'<div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['boxHeight','Wysokość ramki (min.)'],['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor bazowy tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
+    $('editor').innerHTML='<div class="brand-note">Kliknij blok na stronie. Przeciągnij jego środek, aby go przesunąć, lub uchwyt ramki, aby zmienić rozmiar. Tekst zawija się do szerokości ramki; jej wysokość rośnie, jeśli treść potrzebuje więcej miejsca. Esc anuluje przeciąganie. Zdjęcia i ikony z aktywną ramką podmienisz przyciskiem „Podmień”. Dekoracje strony pozostają w tle.</div>'+(page.artwork.version<3?'<button type="button" id="artworkEnableGraphics" class="secondary full">Uaktywnij zdjęcia i ikony w starszej kopii</button><div id="artworkUpgradeStatus" class="status" role="status"></div>':'')+'<label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button><button type="button" id="artworkDeleteCompact" class="mini secondary" '+(!compact.ids.length?'disabled':'')+'>Usuń i dosuń poniżej ('+compact.ids.length+')</button></div><p class="import-note">Dosuwanie obejmuje osobne elementy w tej samej kolumnie, do najbliższego bloku przecinającego kolumnę. Wspólne tło pozostaje nieruchome. Osobne zdjęcia i ikony możesz usuwać lub podmieniać.</p><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea>'+(el.kind==='text'?'<div class="artwork-format-toolbar" role="group" aria-label="Formatowanie zaznaczenia"><button type="button" id="artworkBold" class="mini secondary" aria-label="Pogrub zaznaczenie" aria-pressed="false"><b>B</b></button><label>Kolor zaznaczenia<input type="color" id="artworkSelectionColor" value="#1d1e3c"></label><button type="button" id="artworkApplyColor" class="mini secondary">Zastosuj kolor</button><button type="button" id="artworkClearFormat" class="mini ghost">Wyczyść formatowanie</button></div><p id="artworkSelectionNote" class="import-note" aria-live="polite">Zaznacz fragment tekstu powyżej, a następnie wybierz formatowanie. Efekt zobaczysz na stronie.</p>':'')+(el.kind==='image'?'<label>Podmień wybrany obrazek<input type="file" id="artworkReplaceImage" accept="image/png,image/jpeg,image/webp"></label><p class="import-note">Nowy obrazek zachowa ramkę, położenie i link wybranego elementu.</p><p id="artworkImageStatus" class="status" role="status"></p>':'')+'<div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['boxHeight','Wysokość ramki (min.)'],['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor bazowy tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
+    if($('artworkEnableGraphics'))$('artworkEnableGraphics').onclick=async()=>{
+      const button=$('artworkEnableGraphics'),status=$('artworkUpgradeStatus');button.disabled=true;status.textContent='Sprawdzam dostępne grafiki…';
+      try{const count=await enableSourceGraphics();if(!count)status.textContent='Nie znaleziono pasującej aktualizacji tła. Wybierz najnowszą wersję szablonu z biblioteki.';}
+      catch(error){status.textContent=error.message||'Nie udało się wczytać grafik.';}
+      finally{button.disabled=false;}
+    };
     $('artworkSelect').onchange=e=>{selectedId=e.target.value;renderEditor();renderPreview();};
     $('artworkAddText').onclick=()=>{checkpoint();const field={id:uid('art'),kind:'text',text:'Nowy tekst',x:32,y:60,width:300,fontSize:14,lineHeight:1.5,color:'#1d1e3c',fit:false};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
     $('artworkAddLink').onclick=()=>{checkpoint();const field={id:uid('link'),kind:'link',text:'Obszar linku',link:'',x:32,y:page.artwork.height-70,width:240,height:32};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
@@ -313,6 +324,33 @@
     if($('artworkColor'))$('artworkColor').oninput=e=>{checkpoint();el.color=e.target.value;el.colorOverride=true;renderPreview();};
     if($('artworkFit'))$('artworkFit').onchange=e=>{checkpoint();el.fit=e.target.checked;el.layoutEdited=true;renderPreview();};
   };
+  async function enableSourceGraphics(){
+    const original=state,snapshot=JSON.stringify(state),plans=[];
+    const pages=state.screens.filter(p=>p.artwork&&p.artwork.version<3);
+    const hash=async text=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))].map(n=>n.toString(16).padStart(2,'0')).join('');
+    const fingerprints=await Promise.all(pages.map(p=>hash(p.artwork.background||'')));
+    const response=await fetch('templates/index.json',{cache:'no-store'});if(!response.ok)throw Error('Nie udało się odczytać biblioteki szablonów.');
+    const index=await response.json();
+    for(const item of (index.templates||[]).filter(t=>t.graphicsVersion>=1)){
+      if(!/^templates\/[a-z\d_-]+\.json$/i.test(item.file||''))continue;
+      const response=await fetch(item.file,{cache:'no-store'});if(!response.ok)continue;
+      const payload=await response.json();
+      for(const candidate of payload.project?.screens||[]){
+        const art=candidate.artwork;if(!art?.previousBackgroundSha256||art.version<3||!imageData(art.background))continue;
+        pages.forEach((page,i)=>{
+          if(plans.some(plan=>plan.page===page)||fingerprints[i]!==art.previousBackgroundSha256||page.artwork.width!==art.width||page.artwork.height!==art.height)return;
+          const images=(art.elements||[]).filter(el=>el.kind==='image'&&el.sourceGraphic&&imageData(el.src)).map(el=>({...el,id:uid('art')}));
+          if(images.length)plans.push({page,background:art.background,images});
+        });
+      }
+    }
+    if(state!==original||JSON.stringify(state)!==snapshot)throw Error('Projekt zmienił się w trakcie pobierania. Kliknij ponownie, aby uaktywnić grafiki.');
+    if(!plans.length)return 0;
+    checkpoint();
+    for(const plan of plans){plan.page.artwork.background=plan.background;plan.page.artwork.elements.push(...plan.images);plan.page.artwork.version=3;}
+    renderEditor();renderPreview();showToast('Zdjęcia i ikony są aktywne. Twoje teksty i ustawienia zostały zachowane.');
+    return plans.reduce((n,p)=>n+p.images.length,0);
+  }
   async function importFile(file){
     const original=state,snapshot=JSON.stringify(state),data=new Uint8Array(await file.arrayBuffer());
     if(new TextDecoder().decode(data.slice(0,5))!=='%PDF-') throw Error('Ten plik AI nie zawiera warstwy PDF. Zapisz go w Illustratorze z opcją zgodności z PDF lub wyeksportuj PDF.');
@@ -390,6 +428,6 @@
     }
     return doc.save();
   };
-  window.PdfArtwork={pageHtml,svgFor,importFile,linesFor,elementHeight};
+  window.PdfArtwork={pageHtml,svgFor,importFile,linesFor,elementHeight,enableSourceGraphics};
   render();
 })();
