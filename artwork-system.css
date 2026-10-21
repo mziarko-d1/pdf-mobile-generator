@@ -1,0 +1,9 @@
+.artwork-page{padding:0!important;background:#fff!important;overflow:hidden!important;position:relative}
+.artwork-sheet{display:block;width:100%;height:100%;pointer-events:none}
+.artwork-hit-layer{position:absolute;inset:0}
+.artwork-hit{position:absolute;display:block;padding:0;margin:0;min-width:4px;min-height:4px;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer}
+.artwork-hit:hover{background:rgba(112,227,135,.13);outline:1px solid #70b987;z-index:2}
+.artwork-hit.is-selected{outline:1px solid #6b76ad;z-index:1}
+.artwork-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.artwork-controls label{min-width:0}
+#artworkText{min-height:120px}

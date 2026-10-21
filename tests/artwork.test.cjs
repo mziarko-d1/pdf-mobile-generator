@@ -1,0 +1,178 @@
+const {test, before, after} = require('node:test');
+const assert = require('node:assert/strict');
+const {existsSync}=require('node:fs');
+const {createServer} = require('node:http');
+const {readFile,mkdir} = require('node:fs/promises');
+const path = require('node:path');
+const {chromium} = require('playwright');
+
+let server, browser, origin;
+const root = path.resolve(__dirname, '..');
+const privateFixtures=existsSync(path.join(root,'templates','onepager-sm-26.json'));
+const privateOnly={skip:!privateFixtures?'Source artwork fixtures remain in the owner-private preview':false};
+before(async () => {
+  server = createServer(async (req, res) => {
+    try {
+      const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+      const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
+      if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
+      const content = await readFile(file);
+      res.setHeader('Content-Type', file.endsWith('.png') ? 'image/png' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.json') ? 'application/json' : 'text/html');
+      res.end(content);
+    } catch { res.writeHead(404).end(); }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  origin = `http://127.0.0.1:${server.address().port}`;
+  browser = await chromium.launch({headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE});
+});
+after(async () => {
+  await browser?.close();
+  await new Promise(resolve => server?.close(resolve));
+});
+
+async function editor(t) {
+  const context = await browser.newContext();
+  t.after(() => context.close());
+  // Optional offline CDN cache for restricted environments; production scripts remain unchanged.
+  if (process.env.TEST_ASSET_DIR) {
+    await context.route('https://cdnjs.cloudflare.com/**', async route => {
+      const content = await readFile(path.join(process.env.TEST_ASSET_DIR, path.basename(new URL(route.request().url()).pathname)));
+      await route.fulfill({contentType: 'text/javascript', body: content});
+    });
+  }
+  await context.route('https://fonts.googleapis.com/**', route => route.fulfill({body: ''}));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  t.after(() => assert.deepEqual(errors, [], 'No uncaught browser errors'));
+  await page.goto(origin);
+  await page.waitForFunction(() => window.pdfMobileUndo && window.localforage && window.PDFLib && window.pdfjsLib);
+  await page.waitForFunction(() => document.querySelector('#savedProjects option'));
+  return page;
+}
+const snapshot = page => page.evaluate(() => JSON.stringify(state));
+async function shortcut(page, key) {
+  await page.locator('body').click({position: {x: 1, y: 1}});
+  await page.keyboard.press(key);
+}
+async function useTemplate(page,slug='sm'){
+  await page.locator('[data-use-shared-template="onepager-'+slug+'-26"]').click();
+  await page.waitForFunction(()=>state.screens.every(p=>p.artwork)&&state.screens.length===2);
+  await page.waitForFunction(()=>[...document.querySelectorAll('.artwork-sheet')].every(img=>img.complete&&img.naturalWidth>0));
+  await page.evaluate(()=>document.fonts.ready);
+  const fontStatus=await page.evaluate(async()=>Promise.all(Object.entries(state.artworkFonts).map(async([key,font])=>{
+    try{await new FontFace('Probe_'+key,'url('+font.data+')').load();return {key,ok:true};}
+    catch(error){return {key,ok:false,error:error.message};}
+  })));
+  assert.ok(fontStatus.every(f=>f.ok),JSON.stringify(fontStatus.filter(f=>!f.ok)));
+}
+for(const slug of ['sm','onko'])test(slug+' Illustrator template preserves two pages, editable text and embedded design',privateOnly,async t=>{
+  const page=await editor(t);await useTemplate(page,slug);
+  const data=await page.evaluate(()=>({count:state.screens.reduce((n,p)=>n+p.artwork.elements.length,0),fonts:Object.keys(state.artworkFonts).length,first:state.screens[0].artwork.elements[0].text,svg:PdfArtwork.svgFor(state.screens[0])}));
+  const styles=await page.evaluate(()=>{
+    const fields=state.screens[0].artwork.elements;
+    return {ratings:fields.filter(e=>['9,5','9,6','86%'].includes(e.text)).map(e=>e.font),
+      bold:fields.find(e=>e.text.startsWith('W tym miejscu')).font,
+      normal:fields.find(e=>e.text.startsWith('Ten sam kontakt')).font};
+  });
+  assert.equal(styles.ratings.length,3);assert.equal(new Set(styles.ratings).size,1);
+  assert.notEqual(styles.bold,styles.normal);
+  assert.ok(data.count>140);assert.ok(data.fonts>=8);assert.match(data.first,/Pacjent kontaktuje/);assert.match(data.svg,/@font-face/);assert.match(data.svg,/textLength=/);
+  await mkdir(path.join(root,'artifacts'),{recursive:true});
+  await page.setViewportSize({width:1450,height:1500});
+  await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}.artwork-hit{outline:0!important}'});
+  for(let index=0;index<2;index++){
+    await page.locator('.artwork-page').nth(index).screenshot({path:path.join(root,'artifacts','onepager-'+slug+'-'+(index+1)+'.png')});
+  }
+});
+test('clicking an artwork text selects it; edits, position, color, deletion and Undo/Redo work',privateOnly,async t=>{
+  const page=await editor(t);await useTemplate(page);
+  await page.locator('.artwork-hit').first().click();
+  const before=await snapshot(page);
+  await page.locator('#artworkText').fill('Tekst testowy po zmianie.');
+  const after=await snapshot(page);assert.notEqual(before,after);
+  await shortcut(page,'Control+z');assert.equal(await snapshot(page),before);
+  await shortcut(page,'Control+y');assert.equal(await snapshot(page),after);
+  await page.locator('[data-artwork-key="x"]').fill('50');
+  assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements[0].x),50);
+  await page.locator('#artworkColor').fill('#ff0000');
+  assert.match(await page.evaluate(()=>PdfArtwork.svgFor(state.screens[0])),/fill="#ff0000"/);
+  const count=await page.evaluate(()=>state.screens[0].artwork.elements.length);
+  await page.locator('#artworkDelete').click();assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements.length),count-1);
+  await shortcut(page,'Control+z');assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements.length),count);
+});
+test('artwork templates save locally as independent copies and survive editable PDF export/reopen',privateOnly,async t=>{
+  const page=await editor(t);await useTemplate(page);
+  await page.locator('#templateName').fill('SM edytowalny');await page.locator('#saveAsTemplate').click();
+  await page.waitForFunction(()=>document.querySelector('[data-use-template]'));
+  const original=await page.evaluate(()=>state.screens[0].artwork.elements[0].text);
+  await page.locator('#artworkText').fill('Zmieniona kopia');
+  await page.locator('[data-use-template]').first().click();
+  await page.waitForFunction(text=>state.screens[0]?.artwork?.elements[0]?.text===text,original);
+  await page.waitForFunction(()=>[...document.querySelectorAll('.artwork-sheet')].every(i=>i.complete));
+  const result=await page.evaluate(async()=>{
+    const expected=JSON.stringify(state),bytes=await makeEditablePdf(),doc=await PDFLib.PDFDocument.load(bytes);
+    const count=doc.getPageCount();state=initialState();render();
+    const ok=await openProjectPdfBytes(bytes.slice().buffer);
+    return {count,ok,match:JSON.stringify(state)===expected};
+  });
+  assert.equal(result.count,2);assert.equal(result.ok,true);assert.equal(result.match,true);
+});
+test('PDF-compatible AI upload creates separate editable text without duplicating it in background',async t=>{
+  const page=await editor(t);
+  const bytes=await page.evaluate(async()=>{
+    const doc=await PDFLib.PDFDocument.create(),p=doc.addPage([400,600]);
+    p.drawRectangle({x:0,y:0,width:400,height:600,color:PDFLib.rgb(.8,.9,1)});
+    p.drawText('Editable title',{x:40,y:500,size:24,color:PDFLib.rgb(.8,0,0)});
+    return Array.from(await doc.save());
+  });
+  await page.locator('#pdfImportMode').selectOption('layout');
+  await page.locator('#openDocument').setInputFiles({name:'sample.ai',mimeType:'application/postscript',buffer:Buffer.from(bytes)});
+  await page.waitForFunction(()=>document.getElementById('importStatus').textContent.startsWith('Zaimportowano'));
+  assert.equal(await page.evaluate(()=>state.screens[0].artwork.elements[0].text),'Editable title');
+  const b=await page.evaluate(async()=>{
+    const img=new Image();img.src=state.screens[0].artwork.background;await img.decode();
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+    const px=ctx.getImageData(70,150,650,100).data;let red=0;for(let i=0;i<px.length;i+=4)if(px[i]>150&&px[i+1]<80&&px[i+2]<80)red++;return red;
+  });
+  assert.equal(b,0,'Original text must not remain underneath the editable text');
+  assert.match(await page.evaluate(()=>state.screens[0].artwork.elements[0].color),/^#/);
+});
+test('non-PDF native AI is rejected without modifying the current document',async t=>{
+  const page=await editor(t),before=await snapshot(page);
+  await page.locator('#openDocument').setInputFiles({name:'legacy.ai',mimeType:'application/postscript',buffer:Buffer.from('%!PS-Adobe-3.0')});
+  await page.waitForFunction(()=>document.getElementById('importStatus').textContent.includes('nie zawiera warstwy PDF'));
+  assert.equal(await snapshot(page),before);
+});
+test('artwork SVG escapes text and ignores untrusted image URLs; article fill preserves fixed artwork',privateOnly,async t=>{
+  const page=await editor(t);await useTemplate(page);
+  const result=await page.evaluate(()=>{
+    const p=state.screens[0];p.artwork.elements[0].text='<script>alert(1)</script>';
+    p.artwork.elements.push({id:'image',kind:'image',src:'https://example.com/track.png'});
+    return PdfArtwork.svgFor(p);
+  });
+  assert.ok(result.includes('&lt;script&gt;'));assert.ok(!result.includes('https://example.com/track.png'));
+  const before=await snapshot(page);
+  await page.locator('#articleImportUrl').fill('https://example.com/article');await page.locator('#fillTemplateFromContent').click();
+  assert.match(await page.locator('#contentImportStatus').textContent(),/stały układ/);assert.equal(await snapshot(page),before);
+});
+
+test('synthetic fixed layout supports editing, independent template copies and editable PDF round trip',async t=>{
+  const page=await editor(t);
+  await page.evaluate(()=>{
+    state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'synthetic',type:'artwork',title:'Synthetic',blocks:[],artwork:{version:1,width:400,height:600,background:'',elements:[{id:'text',kind:'text',text:'Example text',x:30,y:70,width:250,fontSize:16,color:'#1d1e3c',fit:false,lineHeight:1.5}]}}],selected:'synthetic',artworkFonts:{}};
+    render();
+  });
+  await page.locator('.artwork-hit').click();const before=await snapshot(page);
+  await page.locator('#artworkText').fill('Changed text');const after=await snapshot(page);
+  await shortcut(page,'Control+z');assert.equal(await snapshot(page),before);
+  await shortcut(page,'Control+y');assert.equal(await snapshot(page),after);
+  await page.locator('#templateName').fill('Synthetic layout');await page.locator('#saveAsTemplate').click();
+  await page.waitForFunction(()=>document.querySelector('[data-use-template]'));
+  await page.locator('#artworkText').fill('Later change');await page.locator('[data-use-template]').first().click();
+  await page.waitForFunction(()=>state.screens[0].artwork.elements[0].text==='Changed text');
+  const result=await page.evaluate(async()=>{
+    const expected=JSON.stringify(state),bytes=await makeEditablePdf();state=initialState();render();
+    return await openProjectPdfBytes(bytes.slice().buffer)&&JSON.stringify(state)===expected;
+  });assert.equal(result,true);
+});
