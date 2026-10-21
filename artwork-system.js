@@ -15,27 +15,69 @@
   const measure=document.createElement('canvas').getContext('2d');
   const {safeLink,groupElements,linkRect,bounds,resizeElement,removalPlan}=window.ArtworkLayout;
   const originalLayout=element=>element.originalLines?.length&&element.text===element.originalText&&!element.layoutEdited;
-  const textWidth=(text,element)=>measure.measureText(glyphText(text,(state.artworkFonts||{})[element.font])).width+Math.max(0,[...text].length-1)*number(element.letterSpacing,0,-20,100);
-  function linesFor(element){
-    if(originalLayout(element))return element.originalLines.map(l=>l.text);
-    const width=number(element.width,200,4,10000),size=number(element.fontSize,12,1,300);
-    measure.font=size+'px '+fontFamily(element);
-    const out=[];
-    for(const paragraph of String(element.text||'').split('\n')){
-      if(element.fit){out.push(paragraph);continue;}
-      let line='';
-      for(const word of paragraph.split(/(\s+)/)){
-        if(line&&textWidth(line+word,element)>width){out.push(line.trimEnd());line=word.trimStart();}
-        else line+=word;
-        while(textWidth(line,element)>width&&[...line].length>1){
-          let prefix='';
-          for(const ch of line){if(prefix&&textWidth(prefix+ch,element)>width)break;prefix+=ch;}
-          out.push(prefix);line=line.slice(prefix.length);
-        }
+  const {applyStyle,remapStyles,runs,originalOffsets,sourceStyles,cells}=window.ArtworkText;
+  function rememberSourceStyles(element){
+    if(!element.sourceStyles&&element.text===element.originalText)element.sourceStyles=sourceStyles(element);
+  }
+  function styledRuns(element){
+    let styles=element.sourceStyles||[];
+    if(element.colorOverride)styles=styles.map(({color,...rest})=>rest);
+    return runs(String(element.text||''),[...styles,...(element.textStyles||[])]);
+  }
+  function flowLines(element){
+    const text=String(element.text||''),width=number(element.width,200,4,10000),size=number(element.fontSize,12,1,300),styles=styledRuns(element);
+    function widthOf(start,end){
+      let total=0;
+      for(const run of styles){
+        const left=Math.max(start,run.start),right=Math.min(end,run.end);if(right<=left)continue;
+        const font=run.style.font??element.font;
+        measure.font=(run.style.bold?'bold ':'')+size+'px '+fontFamily({font})+',Arial';
+        total+=measure.measureText(glyphText(text.slice(left,right),(state.artworkFonts||{})[font])).width;
       }
-      out.push(line);
+      return total+Math.max(0,[...text.slice(start,end)].length-1)*number(element.letterSpacing,0,-20,100);
+    }
+    const out=[];let offset=0;
+    for(const paragraph of text.split('\n')){
+      const end=offset+paragraph.length;
+      if(element.fit||!paragraph){out.push({text:paragraph,start:offset,end});offset=end+1;continue;}
+      let start=offset;
+      while(start<end){
+        let limit=start;
+        for(const char of text.slice(start,end)){
+          const next=limit+char.length;
+          if(limit>start&&widthOf(start,next)>width)break;
+          limit=next;
+        }
+        if(limit===end){out.push({text:text.slice(start,end),start,end});break;}
+        // Break at a word boundary, otherwise split an overlong word by code point.
+        const part=text.slice(start,limit),spaces=[...part.matchAll(/\s+/gu)];
+        const space=spaces.filter(m=>m.index>0).at(-1);
+        let stop=space?start+space.index:limit;
+        if(/\s/u.test(text[limit]||''))stop=limit;
+        const line=text.slice(start,stop).trimEnd();out.push({text:line,start,end:start+line.length});
+        start=stop;while(start<end&&/\s/u.test(text[start]))start++;
+      }
+      offset=end+1;
     }
     return out;
+  }
+  function linesFor(element){
+    return originalLayout(element)?element.originalLines.map(l=>l.text):flowLines(element).map(l=>l.text);
+  }
+  function formattedMarkup(text,element,start){
+    const end=start+text.length;
+    return styledRuns(element).filter(run=>run.end>start&&run.start<end).map(run=>{
+      const font=run.style.font??element.font;
+      return '<tspan font-family="'+fontFamily({font})+',Arial" font-weight="'+(run.style.bold?'700':'400')+'" fill="'+color(run.style.color||element.color)+'">'+glyphMarkup(String(element.text).slice(Math.max(start,run.start),Math.min(end,run.end)),(state.artworkFonts||{})[font])+'</tspan>';
+    }).join('');
+  }
+  function originalMarkup(element,line,index,offsets){
+    if(!offsets||!element.textStyles?.length)return glyphMarkup(line.text,(state.artworkFonts||{})[line.font]);
+    const styles=cells(element.text,element.textStyles);
+    return [...line.text].map((char,i)=>{
+      const style=styles[offsets[index][i]]||{};
+      return '<tspan'+(style.color?' fill="'+color(style.color)+'"':'')+(typeof style.bold==='boolean'?' font-weight="'+(style.bold?'700':'400')+'"':'')+'>'+glyphMarkup(char,(state.artworkFonts||{})[line.font])+'</tspan>';
+    }).join('');
   }
   function elementHeight(element){
     if(element.kind!=='text')return number(element.height,32,1);
@@ -70,13 +112,14 @@
       const size=number(element.fontSize,12,1,300),font=fonts[element.font];
       let spans;
       if(originalLayout(element)){
-        spans=element.originalLines.map(line=>{
+        const offsets=originalOffsets(element);
+        spans=element.originalLines.map((line,index)=>{
           const left=x+number(line.x),baseline=y+number(line.y);
           const positions=Array.isArray(line.charX)?line.charX.map(dx=>left+number(dx)).join(' '):String(left);
-          return '<tspan x="'+positions+'" y="'+baseline+'" font-family="'+fontFamily(line)+',Arial" font-size="'+number(line.fontSize,size,1,300)+'" fill="'+color(element.colorOverride?element.color:line.color)+'"'+(!line.charX?' letter-spacing="'+number(line.letterSpacing,0,-20,100)+'"'+(line.fit&&line.text?' textLength="'+number(line.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':''):'')+'>'+glyphMarkup(line.text,fonts[line.font])+'</tspan>';
+          return '<tspan x="'+positions+'" y="'+baseline+'" font-family="'+fontFamily(line)+',Arial" font-size="'+number(line.fontSize,size,1,300)+'" fill="'+color(element.colorOverride?element.color:line.color)+'"'+(!line.charX?' letter-spacing="'+number(line.letterSpacing,0,-20,100)+'"'+(line.fit&&line.text?' textLength="'+number(line.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':''):'')+'>'+originalMarkup(element,line,index,offsets)+'</tspan>';
         }).join('');
       }else{
-        spans=linesFor(element).map((line,i)=>'<tspan x="'+x+'" y="'+(y+i*size*number(element.lineHeight,1.5,.5,5))+'" letter-spacing="'+number(element.letterSpacing,0,-20,100)+'"'+(element.fit&&line?' textLength="'+number(element.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':'')+'>'+glyphMarkup(line,font)+'</tspan>').join('');
+        spans=flowLines(element).map((line,i)=>'<tspan x="'+x+'" y="'+(y+i*size*number(element.lineHeight,1.5,.5,5))+'" letter-spacing="'+number(element.letterSpacing,0,-20,100)+'"'+(element.fit&&line.text?' textLength="'+number(element.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':'')+'>'+formattedMarkup(line.text,element,line.start)+'</tspan>').join('');
       }
       body+='<text xml:space="preserve" fill="'+color(element.color)+'" font-family="'+fontFamily(element)+',Arial" font-size="'+size+'"'+(element.rotation?' transform="rotate('+number(element.rotation,0,-360,360)+' '+x+' '+y+')"':'')+'>'+spans+'</text>';
     }
@@ -182,7 +225,7 @@
     if(!selected(page)) selectedId=fields[0]?.id||'';
     const el=selected(page);
     const compact=el?removalPlan(fields,el.id,elementHeight):{shift:0,ids:[]};
-    $('editor').innerHTML='<div class="brand-note">Kliknij blok na stronie. Przeciągnij jego środek, aby go przesunąć, lub uchwyt ramki, aby zmienić rozmiar. Tekst zawija się do szerokości ramki; jej wysokość rośnie, jeśli treść potrzebuje więcej miejsca. Esc anuluje przeciąganie. Ilustracje i dekoracje oryginału są częścią wspólnego tła.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button><button type="button" id="artworkDeleteCompact" class="mini secondary" '+(!compact.ids.length?'disabled':'')+'>Usuń i dosuń poniżej ('+compact.ids.length+')</button></div><p class="import-note">Dosuwanie obejmuje osobne elementy w tej samej kolumnie, do najbliższego bloku przecinającego kolumnę. Wspólne tło pozostaje nieruchome. Ilustracji zapisanych w tle nie usuniesz osobno; obrazki dodane tutaj możesz usuwać.</p><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea><div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['boxHeight','Wysokość ramki (min.)'],['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
+    $('editor').innerHTML='<div class="brand-note">Kliknij blok na stronie. Przeciągnij jego środek, aby go przesunąć, lub uchwyt ramki, aby zmienić rozmiar. Tekst zawija się do szerokości ramki; jej wysokość rośnie, jeśli treść potrzebuje więcej miejsca. Esc anuluje przeciąganie. Ilustracje i dekoracje oryginału są częścią wspólnego tła.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button><button type="button" id="artworkDeleteCompact" class="mini secondary" '+(!compact.ids.length?'disabled':'')+'>Usuń i dosuń poniżej ('+compact.ids.length+')</button></div><p class="import-note">Dosuwanie obejmuje osobne elementy w tej samej kolumnie, do najbliższego bloku przecinającego kolumnę. Wspólne tło pozostaje nieruchome. Ilustracji zapisanych w tle nie usuniesz osobno; obrazki dodane tutaj możesz usuwać.</p><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea>'+(el.kind==='text'?'<div class="artwork-format-toolbar" role="group" aria-label="Formatowanie zaznaczenia"><button type="button" id="artworkBold" class="mini secondary" aria-label="Pogrub zaznaczenie" aria-pressed="false"><b>B</b></button><label>Kolor zaznaczenia<input type="color" id="artworkSelectionColor" value="#1d1e3c"></label><button type="button" id="artworkApplyColor" class="mini secondary">Zastosuj kolor</button><button type="button" id="artworkClearFormat" class="mini ghost">Wyczyść formatowanie</button></div><p id="artworkSelectionNote" class="import-note" aria-live="polite">Zaznacz fragment tekstu powyżej, a następnie wybierz formatowanie. Efekt zobaczysz na stronie.</p>':'')+(el.kind==='image'?'<label>Podmień wybrany obrazek<input type="file" id="artworkReplaceImage" accept="image/png,image/jpeg,image/webp"></label><p class="import-note">Nowy obrazek zachowa ramkę, położenie i link wybranego elementu.</p><p id="artworkImageStatus" class="status" role="status"></p>':'')+'<div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['boxHeight','Wysokość ramki (min.)'],['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor bazowy tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
     $('artworkSelect').onchange=e=>{selectedId=e.target.value;renderEditor();renderPreview();};
     $('artworkAddText').onclick=()=>{checkpoint();const field={id:uid('art'),kind:'text',text:'Nowy tekst',x:32,y:60,width:300,fontSize:14,lineHeight:1.5,color:'#1d1e3c',fit:false};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
     $('artworkAddLink').onclick=()=>{checkpoint();const field={id:uid('link'),kind:'link',text:'Obszar linku',link:'',x:32,y:page.artwork.height-70,width:240,height:32};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
@@ -201,7 +244,58 @@
     };
     if(!el) return;
     $('artworkText').onbeforeinput=checkpoint;
-    $('artworkText').oninput=e=>{el.text=e.target.value;el.fit=false;if($('artworkFit'))$('artworkFit').checked=false;renderPreview();};
+    $('artworkText').oninput=e=>{
+      if(el.kind==='text'){
+        rememberSourceStyles(el);
+        if(el.textStyles)el.textStyles=remapStyles(el.text,e.target.value,el.textStyles);
+        if(el.sourceStyles)el.sourceStyles=remapStyles(el.text,e.target.value,el.sourceStyles);
+      }
+      el.text=e.target.value;el.fit=false;if($('artworkFit'))$('artworkFit').checked=false;renderPreview();
+    };
+    if(el.kind==='text'){
+      const input=$('artworkText'),bold=$('artworkBold'),apply=$('artworkApplyColor'),clear=$('artworkClearFormat');
+      function selection(){return {start:input.selectionStart,end:input.selectionEnd};}
+      function updateFormat(){
+        const {start,end}=selection(),has=end>start;
+        bold.disabled=apply.disabled=clear.disabled=!has;
+        const styles=cells(el.text,el.textStyles);
+        bold.setAttribute('aria-pressed',String(has&&styles.slice(start,end).every(s=>s.bold===true)));
+        $('artworkSelectionNote').textContent=has?'Formatowanie dotyczy zaznaczonego fragmentu. Efekt zobaczysz na stronie.':'Zaznacz fragment tekstu powyżej, a następnie wybierz formatowanie. Efekt zobaczysz na stronie.';
+      }
+      function format(patch){
+        const {start,end}=selection();if(end<=start)return;
+        checkpoint();
+        if(Object.hasOwn(patch,'bold')){rememberSourceStyles(el);el.layoutEdited=true;el.fit=false;$('artworkFit').checked=false;}
+        el.textStyles=applyStyle(el.text,el.textStyles,start,end,patch);
+        // If source text cannot be aligned, use the paragraph renderer for exact selection offsets.
+        if(originalLayout(el)&&!originalOffsets(el)){rememberSourceStyles(el);el.layoutEdited=true;el.fit=false;}
+        renderPreview();input.focus({preventScroll:true});input.setSelectionRange(start,end);updateFormat();
+      }
+      input.addEventListener('select',updateFormat);input.addEventListener('keyup',updateFormat);input.addEventListener('mouseup',updateFormat);input.addEventListener('input',updateFormat);
+      for(const button of [bold,apply,clear])button.onmousedown=e=>e.preventDefault();
+      bold.onclick=()=>format({bold:bold.getAttribute('aria-pressed')!=='true'});
+      apply.onclick=()=>format({color:$('artworkSelectionColor').value});
+      clear.onclick=()=>format({bold:null,color:null});
+      input.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='b'){e.preventDefault();updateFormat();bold.click();}});
+      updateFormat();
+    }
+    if($('artworkReplaceImage'))$('artworkReplaceImage').onchange=async e=>{
+      const file=e.target.files?.[0];if(!file)return;
+      const status=$('artworkImageStatus'),originalState=state,originalSrc=el.src;
+      status.textContent='Wczytuję obrazek…';
+      try{
+        if(!['image/png','image/jpeg','image/webp'].includes(file.type))throw Error('Wybierz plik PNG, JPG lub WebP.');
+        if(file.size>20*1024*1024)throw Error('Wybierz obrazek mniejszy niż 20 MB.');
+        const src=await readImageFile(file);if(!imageData(src))throw Error('Nie udało się odczytać obrazka.');
+        const image=new Image();image.src=src;await image.decode();
+        if(!image.naturalWidth||!image.naturalHeight)throw Error('Plik nie zawiera poprawnego obrazka.');
+        if(state!==originalState||!state.screens.includes(page)||!page.artwork.elements.includes(el)||el.src!==originalSrc)return;
+        checkpoint();el.src=src;
+        status.textContent='Obrazek podmieniony. Położenie, rozmiar i link pozostały bez zmian.';renderPreview();
+      }catch(error){status.textContent=error.message||'Nie udało się podmienić obrazka.';}
+      finally{e.target.value='';}
+    };
+
     document.querySelectorAll('[data-artwork-key]').forEach(input=>{
       input.onfocus=checkpoint;
       input.oninput=()=>{el[input.dataset.artworkKey]=number(input.value);if(['fontSize','width','lineHeight','letterSpacing'].includes(input.dataset.artworkKey)){el.fit=false;el.layoutEdited=true;}renderPreview();};

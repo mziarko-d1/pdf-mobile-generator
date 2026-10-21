@@ -284,3 +284,80 @@ test('mouse resize and move use preview scale, cancel safely and create one Undo
  const roundTrip=await page.evaluate(async()=>{const expected=JSON.stringify(state),bytes=await makeEditablePdf();state=initialState();render();return await openProjectPdfBytes(bytes.slice().buffer)&&JSON.stringify(state)===expected;});
  assert.equal(roundTrip,true);
 });
+
+test('selected text supports bold and color, edits retain ranges, and PDF export retains styling and replaced images',async t=>{
+ const page=await editor(t);
+ await page.evaluate(()=>{
+   const image=document.createElement('canvas');image.width=80;image.height=50;const ctx=image.getContext('2d');ctx.fillStyle='#246bad';ctx.fillRect(0,0,80,50);
+   const text='A selected word and sentence can be emphasized.';
+   state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'rich',type:'artwork',title:'Rich text',blocks:[],artwork:{version:2,width:400,height:600,background:'',elements:[{id:'text',kind:'text',text,x:30,y:70,width:280,fontSize:16,lineHeight:1.5,color:'#1d1e3c',fit:false},{id:'photo',kind:'image',src:image.toDataURL(),text:'Photo',x:30,y:200,width:180,height:120,link:'https://example.com/photo'}]}}],selected:'rich',artworkFonts:{}};render();
+ });
+ async function select(start,end){await page.locator('#artworkText').evaluate((el,[a,b])=>{el.focus();el.setSelectionRange(a,b);el.dispatchEvent(new Event('select'));},[start,end]);}
+ assert.equal(await page.locator('#artworkBold').isDisabled(),true);
+ const plain=await snapshot(page);
+ await select(2,15);await page.locator('#artworkBold').click();
+ assert.deepEqual(await page.evaluate(()=>state.screens[0].artwork.elements[0].textStyles),[{start:2,end:15,bold:true}]);
+ const bold=await snapshot(page);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),plain);
+ await shortcut(page,'Control+y');assert.equal(await snapshot(page),bold);
+ await select(2,15);await page.locator('#artworkSelectionColor').fill('#a92323');await page.locator('#artworkApplyColor').click();
+ const formatted=await snapshot(page);
+ const visual=await page.evaluate(()=>{
+   const svg=new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml');
+   return {bold:[...svg.querySelectorAll('tspan[font-weight="700"]')].map(n=>n.textContent).join(''),color:[...svg.querySelectorAll('tspan[fill="#a92323"]')].map(n=>n.textContent).join('')};
+ });
+ assert.equal(visual.bold,'selected word');assert.equal(visual.color,'selected word');
+ await select(0,0);await page.locator('#artworkText').press('Home');await page.keyboard.insertText('New ');
+ assert.deepEqual(await page.evaluate(()=>state.screens[0].artwork.elements[0].textStyles),[{start:6,end:19,bold:true,color:'#a92323'}]);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),formatted);
+ await select(2,15);await page.locator('#artworkClearFormat').click();
+ assert.deepEqual(await page.evaluate(()=>state.screens[0].artwork.elements[0].textStyles),[]);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),formatted);
+ await page.locator('#artworkSelect').selectOption('photo');
+ const beforeSwap=await snapshot(page);
+ const geometry=await page.evaluate(()=>{const {src,...rest}=state.screens[0].artwork.elements[1];return rest;});
+ const replacement=await page.evaluate(()=>{
+   const c=document.createElement('canvas');c.width=100;c.height=60;const ctx=c.getContext('2d');ctx.fillStyle='#398a51';ctx.fillRect(0,0,100,60);ctx.fillStyle='white';ctx.font='14px Arial';ctx.fillText('New image',13,35);return c.toDataURL().split(',')[1];
+ });
+ await page.locator('#artworkReplaceImage').setInputFiles({name:'replacement.png',mimeType:'image/png',buffer:Buffer.from(replacement,'base64')});
+ await page.waitForFunction(()=>document.querySelector('#artworkImageStatus').textContent.startsWith('Obrazek podmieniony'));
+ assert.deepEqual(await page.evaluate(()=>{const {src,...rest}=state.screens[0].artwork.elements[1];return rest;}),geometry);
+ assert.notEqual(await snapshot(page),beforeSwap);
+ const swapped=await snapshot(page);
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),beforeSwap);
+ await shortcut(page,'Control+y');assert.equal(await snapshot(page),swapped);
+ await page.locator('#artworkReplaceImage').setInputFiles({name:'broken.png',mimeType:'image/png',buffer:Buffer.from('not an image')});
+ await page.waitForFunction(()=>!document.querySelector('#artworkImageStatus').textContent.startsWith('Wczytuję'));
+ assert.equal(await snapshot(page),swapped);
+ await page.locator('#artworkSelect').selectOption('text');
+ await page.setViewportSize({width:1450,height:1200});
+ await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}'});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await page.waitForFunction(()=>[...document.querySelectorAll('.artwork-sheet')].every(image=>image.complete));
+ await mkdir(path.join(root,'artifacts'),{recursive:true});
+ await page.screenshot({clip:await page.locator('.artwork-page').boundingBox(),path:path.join(root,'artifacts','artwork-rich-text-image.png')});
+ const exported=await page.evaluate(async()=>{
+   const expected=JSON.stringify(state),bytes=await makeEditablePdf();
+   // Verify actual PDF pixels, not just the embedded project model.
+   const pdf=await pdfjsLib.getDocument({data:bytes.slice()}).promise,p=await pdf.getPage(1),vp=p.getViewport({scale:1});
+   const c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;await p.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+   const pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let red=0,green=0;
+   for(let i=0;i<pixels.length;i+=4){if(pixels[i]>100&&pixels[i]>pixels[i+1]*2&&pixels[i]>pixels[i+2]*2)red++;if(pixels[i+1]>pixels[i]*1.5&&pixels[i+1]>pixels[i+2]*1.3)green++;}
+   await pdf.destroy();state=initialState();render();const restored=await openProjectPdfBytes(bytes.slice().buffer);
+   return {restored:restored&&JSON.stringify(state)===expected,red,green};
+ });
+ assert.equal(exported.restored,true);assert.ok(exported.red>10);assert.ok(exported.green>200);
+});
+test('coloring tracked original text keeps glyph coordinates and selection boundaries',async t=>{
+ const page=await editor(t);
+ await page.evaluate(()=>{
+   const text='TRACKED LABEL',charX=[...text].map((_,i)=>i*11);
+   const element={id:'text',kind:'text',text,originalText:text,x:30,y:60,width:145,fontSize:12,color:'#1d1e3c',letterSpacing:2,originalLines:[{text,x:0,y:0,fontSize:12,color:'#1d1e3c',charX}]};
+   state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'original',type:'artwork',blocks:[],artwork:{version:2,width:400,height:600,elements:[element]}}],selected:'original'};render();
+ });
+ const x=await page.evaluate(()=>new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml').querySelector('text > tspan').getAttribute('x'));
+ await page.locator('#artworkText').evaluate(el=>{el.focus();el.setSelectionRange(8,13);el.dispatchEvent(new Event('select'));});
+ await page.locator('#artworkSelectionColor').fill('#ff0000');await page.locator('#artworkApplyColor').click();
+ const result=await page.evaluate(()=>{const svg=new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml');return {x:svg.querySelector('text > tspan').getAttribute('x'),colored:[...svg.querySelectorAll('tspan[fill="#ff0000"]')].map(n=>n.textContent).join('')};});
+ assert.equal(result.x,x);assert.equal(result.colored,'LABEL');
+});
