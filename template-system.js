@@ -1,7 +1,7 @@
 (function(){
   const INDEX_KEY='pdf-mobile-generator:templates:index:v1';
   const DATA_PREFIX='pdf-mobile-generator:templates:data:v1:';
-  const SHARED_INDEX_URL='templates/index.json?v=20261008-2';
+  const SHARED_INDEX_URL='templates/index.json?v=20261021-1';
 
   const nameInput=document.getElementById('templateName');
   const saveFormat=document.getElementById('templateSaveFormat');
@@ -86,6 +86,7 @@
         if(!groupMap[oldGroup]) groupMap[oldGroup]=uid('group');
         screen.importGroup=groupMap[oldGroup];
       }
+      (screen.artwork?.elements||[]).forEach(function(element){element.id=uid('art');});
       (screen.blocks||[]).forEach(function(block){
         block.id=uid('b');
         if(block.type==='columns'&&Array.isArray(block.columns)){

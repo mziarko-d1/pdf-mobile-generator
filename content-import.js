@@ -777,6 +777,10 @@
 
     const role=roleByTemplate[templateSelect.value]||'neutral';
 
+    if(state.screens.some(page=>page.artwork)){
+      setStatus('Ten szablon ma stały układ z Illustratora. Edytuj jego pola tekstowe albo wybierz szablon artykułu do automatycznego wypełniania.','err');
+      return;
+    }
     const layoutBlueprint=captureLayoutBlueprint();
     const confirmMessage=layoutBlueprint
       ?'Wypełnić bieżący układ zaimportowaną treścią?\n\nFormat, kolory i styl szablonu zostaną zachowane. Zmieniona zostanie tylko kopia projektu.'

@@ -1,0 +1,30 @@
+.artwork-page{padding:0!important;background:#fff!important;overflow:hidden!important;position:relative}
+.artwork-sheet{display:block;width:100%;height:100%;pointer-events:none}
+.artwork-hit-layer{position:absolute;inset:0}
+.artwork-hit{position:absolute;display:block;padding:0;margin:0;min-width:4px;min-height:4px;border:0;border-radius:0;background:transparent;box-shadow:none;cursor:pointer}
+.artwork-hit:hover{background:rgba(112,227,135,.13);outline:1px solid #70b987;z-index:2}
+.artwork-hit.is-selected{outline:1px solid #6b76ad;z-index:1}
+.artwork-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.artwork-controls label{min-width:0}
+#artworkText{min-height:120px}
+
+.artwork-hit.is-link{outline:1px dashed #8494c0;background:rgba(132,148,192,.05)}
+#artworkLink{width:100%;border:1px solid #E2E5ED;border-radius:12px;padding:10px}
+
+.artwork-hit{touch-action:none;cursor:move}
+.artwork-selection{position:absolute;pointer-events:none;outline:1.5px solid #636fa7;z-index:4}
+.artwork-resize{position:absolute;width:14px;height:14px;min-width:14px;min-height:14px;padding:0;margin:0;border:2px solid #636fa7;border-radius:3px;background:white;box-shadow:0 1px 3px #0002;pointer-events:auto;touch-action:none}
+.artwork-resize:hover,.artwork-resize:focus-visible{background:#d9e0ff;outline:2px solid #fff}
+.artwork-resize-w{left:0;top:50%;transform:translate(-50%,-50%);cursor:ew-resize}
+.artwork-resize-e{left:100%;top:50%;transform:translate(-50%,-50%);cursor:ew-resize}
+.artwork-resize-s{left:50%;top:100%;transform:translate(-50%,-50%);cursor:ns-resize}
+.artwork-resize-se{left:100%;top:100%;transform:translate(-50%,-50%);cursor:nwse-resize}
+
+.artwork-format-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.artwork-format-toolbar label{margin:0;display:flex;align-items:center;gap:6px;font-size:10px}
+.artwork-format-toolbar input[type=color]{width:30px;height:30px;padding:2px;border:1px solid #cbd0df;border-radius:6px;background:white}
+.artwork-format-toolbar button[aria-pressed=true]{background:#3f506e;color:white}
+.artwork-format-toolbar button:disabled{opacity:.45;cursor:default}
+
+.artwork-swap{position:absolute;left:0;bottom:calc(100% + 10px);pointer-events:auto;padding:6px 10px;white-space:nowrap;background:#3f506e;color:white;border:1px solid white;border-radius:7px;box-shadow:0 2px 6px #0003;cursor:pointer}
+.artwork-hit[aria-label^="Edytuj: Ikona"]{min-width:8px;min-height:8px}

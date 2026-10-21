@@ -14,6 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+<link rel="stylesheet" href="artwork-system.css?v=20261021-5">
 </head>
 <body>
 <div class="app">
@@ -153,9 +154,9 @@
 
     <section class="card">
       <h2>Otwórz istniejący PDF / DOCX</h2>
-      <input id="openDocument" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      <input id="openDocument" type="file" accept=".ai,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <label>Obcy PDF</label>
-      <select id="pdfImportMode"><option value="rebuild">Przebuduj na edytowalne bloki</option><option value="background">Zachowaj strony jako tło + nakładki</option></select>
+      <select id="pdfImportMode"><option value="layout">Układ PDF / AI · edytowalne teksty</option><option value="rebuild">Przebuduj na edytowalne bloki</option><option value="background">Zachowaj strony jako tło + nakładki</option></select>
       <div id="importStatus" class="status"></div>
     </section>
 
@@ -266,5 +267,8 @@
 <script src="admin-auth.js?v=20261008-1"></script>
 <script src="template-system.js?v=20261008-4"></script>
 <script src="undo-system.js?v=20261013-closing-1"></script>
+<script src="artwork-layout.js?v=20261021-4"></script>
+<script src="artwork-text.js?v=20261021-4"></script>
+<script src="artwork-system.js?v=20261021-5"></script>
 </body>
 </html>
