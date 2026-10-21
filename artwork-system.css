@@ -7,3 +7,6 @@
 .artwork-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .artwork-controls label{min-width:0}
 #artworkText{min-height:120px}
+
+.artwork-hit.is-link{outline:1px dashed #8494c0;background:rgba(132,148,192,.05)}
+#artworkLink{width:100%;border:1px solid #E2E5ED;border-radius:12px;padding:10px}

@@ -13,7 +13,11 @@
   const selected=page=>(page.artwork.elements||[]).find(e=>e.id===selectedId);
   const fontFamily=element=>element.font?family(element.font):'Arial';
   const measure=document.createElement('canvas').getContext('2d');
+  const {safeLink,groupElements,linkRect}=window.ArtworkLayout;
+  const originalLayout=element=>element.originalLines?.length&&element.text===element.originalText&&!element.layoutEdited;
+  const textWidth=(text,element)=>measure.measureText(glyphText(text,(state.artworkFonts||{})[element.font])).width+Math.max(0,[...text].length-1)*number(element.letterSpacing,0,-20,100);
   function linesFor(element){
+    if(originalLayout(element))return element.originalLines.map(l=>l.text);
     const width=number(element.width,200,4,10000),size=number(element.fontSize,12,1,300);
     measure.font=size+'px '+fontFamily(element);
     const out=[];
@@ -21,12 +25,22 @@
       if(element.fit){out.push(paragraph);continue;}
       let line='';
       for(const word of paragraph.split(/(\s+)/)){
-        if(line&&measure.measureText(line+word).width>width){out.push(line.trimEnd());line=word.trimStart();}
+        if(line&&textWidth(line+word,element)>width){out.push(line.trimEnd());line=word.trimStart();}
         else line+=word;
+        while(textWidth(line,element)>width&&[...line].length>1){
+          let prefix='';
+          for(const ch of line){if(prefix&&textWidth(prefix+ch,element)>width)break;prefix+=ch;}
+          out.push(prefix);line=line.slice(prefix.length);
+        }
       }
       out.push(line);
     }
     return out;
+  }
+  function elementHeight(element){
+    if(element.kind!=='text')return number(element.height,32,1);
+    if(originalLayout(element))return Math.max(...element.originalLines.map(l=>number(l.y)+number(l.fontSize,12)*1.3));
+    return Math.max(number(element.fontSize,12)*1.3,linesFor(element).length*number(element.fontSize,12)*number(element.lineHeight,1.5,.5,5));
   }
   function glyphText(text,font){
     return [...text].map(ch=>(font?.map||{})[ch]||ch).join('');
@@ -47,13 +61,23 @@
     if(background) body+='<image width="100%" height="100%" href="'+background+'"/>';
     for(const element of artwork.elements||[]){
       const x=number(element.x),y=number(element.y);
+      if(element.kind==='link')continue;
       if(element.kind==='image'){
         const src=imageData(element.src);
         if(src) body+='<image x="'+x+'" y="'+y+'" width="'+number(element.width,100,1)+'" height="'+number(element.height,100,1)+'" href="'+src+'"/>';
         continue;
       }
-      const size=number(element.fontSize,12,1,300),lines=linesFor(element),font=fonts[element.font];
-      const spans=lines.map((line,i)=>'<tspan x="'+x+'" y="'+(y+i*size*number(element.lineHeight,1.5,.5,5))+'"'+(element.fit&&line?' textLength="'+number(element.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':'')+'>'+glyphMarkup(line,font)+'</tspan>').join('');
+      const size=number(element.fontSize,12,1,300),font=fonts[element.font];
+      let spans;
+      if(originalLayout(element)){
+        spans=element.originalLines.map(line=>{
+          const left=x+number(line.x),baseline=y+number(line.y);
+          const positions=Array.isArray(line.charX)?line.charX.map(dx=>left+number(dx)).join(' '):String(left);
+          return '<tspan x="'+positions+'" y="'+baseline+'" font-family="'+fontFamily(line)+',Arial" font-size="'+number(line.fontSize,size,1,300)+'" fill="'+color(element.colorOverride?element.color:line.color)+'"'+(!line.charX?' letter-spacing="'+number(line.letterSpacing,0,-20,100)+'"'+(line.fit&&line.text?' textLength="'+number(line.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':''):'')+'>'+glyphMarkup(line.text,fonts[line.font])+'</tspan>';
+        }).join('');
+      }else{
+        spans=linesFor(element).map((line,i)=>'<tspan x="'+x+'" y="'+(y+i*size*number(element.lineHeight,1.5,.5,5))+'" letter-spacing="'+number(element.letterSpacing,0,-20,100)+'"'+(element.fit&&line?' textLength="'+number(element.width,100,1)+'" lengthAdjust="spacingAndGlyphs"':'')+'>'+glyphMarkup(line,font)+'</tspan>').join('');
+      }
       body+='<text xml:space="preserve" fill="'+color(element.color)+'" font-family="'+fontFamily(element)+',Arial" font-size="'+size+'"'+(element.rotation?' transform="rotate('+number(element.rotation,0,-360,360)+' '+x+' '+y+')"':'')+'>'+spans+'</text>';
     }
     return '<svg xmlns="http://www.w3.org/2000/svg" width="'+number(artwork.width,595,1)+'" height="'+number(artwork.height,842,1)+'" viewBox="0 0 '+number(artwork.width,595,1)+' '+number(artwork.height,842,1)+'"><style>'+css+'</style>'+body+'</svg>';
@@ -79,8 +103,8 @@
       const page=state.screens.find(p=>p.id===node.dataset.selectPage),art=page.artwork;
       const sx=state.w/art.width,sy=state.h/art.height;
       node.querySelector('.artwork-hit-layer').innerHTML=art.elements.map(element=>{
-        const fs=number(element.fontSize,12,1,300),height=element.kind==='image'?number(element.height,100,1):Math.max(fs*1.3,linesFor(element).length*fs*number(element.lineHeight,1.5,.5,5));
-        return '<button type="button" class="artwork-hit '+(selectedId===element.id&&state.selected===page.id?'is-selected':'')+'" data-artwork-id="'+escapeXml(element.id)+'" aria-label="Edytuj: '+escapeXml((element.text||'Obrazek').slice(0,90))+'" style="left:'+(number(element.x)*sx)+'px;top:'+((number(element.y)-(element.kind==='image'?0:fs))*sy)+'px;width:'+(number(element.width,100,1)*sx)+'px;height:'+(height*sy)+'px"></button>';
+        const fs=number(element.fontSize,12,1,300),height=elementHeight(element);
+        return '<button type="button" class="artwork-hit '+(selectedId===element.id&&state.selected===page.id?'is-selected':'')+(element.kind==='link'?' is-link':'')+'" data-artwork-id="'+escapeXml(element.id)+'" aria-label="Edytuj: '+escapeXml((element.text||'Obrazek').slice(0,90))+'" style="left:'+(number(element.x)*sx)+'px;top:'+((number(element.y)-(element.kind==='text'?fs:0))*sy)+'px;width:'+(number(element.width,100,1)*sx)+'px;height:'+(height*sy)+'px"></button>';
       }).join('');
       node.querySelectorAll('.artwork-hit').forEach(hit=>{
         hit.onclick=e=>{e.stopPropagation();state.selected=page.id;selectedId=hit.dataset.artworkId;renderScreenList();renderEditor();renderPreview();};
@@ -95,9 +119,10 @@
     const fields=page.artwork.elements||[];
     if(!selected(page)) selectedId=fields[0]?.id||'';
     const el=selected(page);
-    $('editor').innerHTML='<div class="brand-note">Teksty są edytowalne. Ilustracje, logo i dekoracje oryginału pozostają w tle. Kliknij tekst na stronie albo wybierz go poniżej. Zmiana długiego tekstu może wymagać korekty szerokości lub rozmiaru.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button></div><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='image'?'Opis obrazka':'Treść')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea><div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind==='image'?[['height','Wysokość']]:[['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind==='image'?'':'<label>Kolor tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>'):'');
+    $('editor').innerHTML='<div class="brand-note">Teksty są edytowalne. Ilustracje, logo i dekoracje oryginału pozostają w tle. Kliknij tekst na stronie albo wybierz go poniżej. Zmiana długiego tekstu może wymagać korekty szerokości lub rozmiaru.</div><label>Element</label><select id="artworkSelect">'+fields.map((e,i)=>'<option value="'+escapeXml(e.id)+'" '+(e.id===selectedId?'selected':'')+'>'+(i+1)+'. '+escapeXml((e.text||'Obrazek').slice(0,80))+'</option>').join('')+'</select><div class="actions"><button type="button" id="artworkAddText" class="mini secondary">+ Tekst</button><button type="button" id="artworkAddLink" class="mini secondary">+ Obszar linku</button><button type="button" id="artworkDelete" class="mini danger" '+(!el?'disabled':'')+'>Usuń element</button></div><label>Dodaj obrazek</label><input type="file" id="artworkImage" accept="image/png,image/jpeg,image/webp">'+(el?'<label>'+(el.kind==='text'?'Treść całego bloku':'Nazwa elementu')+'</label><textarea id="artworkText">'+escapeXml(el.text||'')+'</textarea><div class="artwork-controls">'+[['x','X'],['y','Y'],['width','Szerokość'],...(el.kind!=='text'?[['height','Wysokość']]:[['fontSize','Rozmiar tekstu'],['lineHeight','Interlinia'],['letterSpacing','Odstęp między literami']])].map(([key,label])=>'<label>'+label+'<input type="number" step="0.1" data-artwork-key="'+key+'" value="'+number(el[key],key==='lineHeight'?1.5:0)+'"></label>').join('')+'</div>'+(el.kind!=='text'?'':'<label>Kolor tekstu <input type="color" id="artworkColor" value="'+color(el.color)+'"></label><label><input type="checkbox" id="artworkFit" '+(el.fit?'checked':'')+'> Zachowaj szerokość oryginalnego wiersza</label>')+'<label>Link (opcjonalnie)</label><input id="artworkLink" type="text" placeholder="https://www.doctor.one" value="'+escapeXml(el.link||'')+'"><div id="artworkLinkNote" class="status"></div><label>Margines obszaru linku <input id="artworkLinkPadding" type="number" min="0" max="100" value="'+number(el.linkPadding,0,0,100)+'"></label><p class="import-note">Link będzie klikalny w wyeksportowanym PDF-ie. Dla przycisku w tle dodaj obszar linku i ustaw jego położenie oraz rozmiar.</p>':'');
     $('artworkSelect').onchange=e=>{selectedId=e.target.value;renderEditor();renderPreview();};
     $('artworkAddText').onclick=()=>{checkpoint();const field={id:uid('art'),kind:'text',text:'Nowy tekst',x:32,y:60,width:300,fontSize:14,lineHeight:1.5,color:'#1d1e3c',fit:false};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
+    $('artworkAddLink').onclick=()=>{checkpoint();const field={id:uid('link'),kind:'link',text:'Obszar linku',link:'',x:32,y:page.artwork.height-70,width:240,height:32};fields.push(field);selectedId=field.id;renderEditor();renderPreview();};
     $('artworkDelete').onclick=()=>{checkpoint();page.artwork.elements=fields.filter(e=>e.id!==selectedId);selectedId='';renderEditor();renderPreview();};
     $('artworkImage').onchange=async e=>{
       const file=e.target.files?.[0];if(!file) return;
@@ -110,10 +135,20 @@
     $('artworkText').oninput=e=>{el.text=e.target.value;el.fit=false;if($('artworkFit'))$('artworkFit').checked=false;renderPreview();};
     document.querySelectorAll('[data-artwork-key]').forEach(input=>{
       input.onfocus=checkpoint;
-      input.oninput=()=>{el[input.dataset.artworkKey]=number(input.value);if(input.dataset.artworkKey==='fontSize') el.fit=false;renderPreview();};
+      input.oninput=()=>{el[input.dataset.artworkKey]=number(input.value);if(['fontSize','width','lineHeight','letterSpacing'].includes(input.dataset.artworkKey)){el.fit=false;el.layoutEdited=true;}renderPreview();};
     });
-    if($('artworkColor'))$('artworkColor').oninput=e=>{checkpoint();el.color=e.target.value;renderPreview();};
-    if($('artworkFit'))$('artworkFit').onchange=e=>{checkpoint();el.fit=e.target.checked;renderPreview();};
+    $('artworkLink').onbeforeinput=checkpoint;
+    $('artworkLink').oninput=e=>{el.link=e.target.value;updateLinkNote();};
+    $('artworkLinkPadding').onfocus=checkpoint;
+    $('artworkLinkPadding').oninput=e=>{el.linkPadding=number(e.target.value,0,0,100);};
+    function updateLinkNote(){
+      const url=safeLink(el.link),note=$('artworkLinkNote');
+      $('artworkLink').setCustomValidity(el.link&&!url?'Podaj pełny adres https://, http://, mailto: lub tel:.':'');
+      note.innerHTML=url?'<a href="'+escapeXml(url)+'" target="_blank" rel="noopener noreferrer">Sprawdź link ↗</a>':(el.link?'Niepoprawny adres linku.':'Bez linku.');
+    }
+    updateLinkNote();
+    if($('artworkColor'))$('artworkColor').oninput=e=>{checkpoint();el.color=e.target.value;el.colorOverride=true;renderPreview();};
+    if($('artworkFit'))$('artworkFit').onchange=e=>{checkpoint();el.fit=e.target.checked;el.layoutEdited=true;renderPreview();};
   };
   async function importFile(file){
     const original=state,snapshot=JSON.stringify(state),data=new Uint8Array(await file.arrayBuffer());
@@ -157,7 +192,7 @@
           const run=runs.find(r=>r.font===item.fontName&&r.text===item.str.normalize('NFKC').trim());
           elements.push({id:uid('art'),kind:'text',text:item.str,x:tx[4],y:tx[5],width:Math.max(4,item.width),fontSize:size,lineHeight:1.4,color:run?.color||'#1d1e3c',font:fonts[prefix+'_'+item.fontName]?prefix+'_'+item.fontName:'',rotation:Math.atan2(tx[1],tx[0])*180/Math.PI,fit:true});
         }
-        screens.push({id:uid('p'),type:'artwork',title:'Strona '+pageNo,blocks:[],artwork:{version:1,width:viewport.width,height:viewport.height,background:canvas.toDataURL('image/png'),elements}});
+        screens.push({id:uid('p'),type:'artwork',title:'Strona '+pageNo,blocks:[],artwork:{version:2,width:viewport.width,height:viewport.height,background:canvas.toDataURL('image/png'),elements:groupElements(elements)}});
       }
       if(state!==original||JSON.stringify(state)!==snapshot) throw Error('Projekt zmienił się w trakcie importu. Wgraj plik ponownie.');
       checkpoint();const first=screens[0].artwork;
@@ -170,10 +205,28 @@
   }
   const baseMakePdf=makeEditablePdf;
   makeEditablePdf=async function(){
+    for(const page of state.screens)for(const el of page.artwork?.elements||[]){
+      if(el.link&&!safeLink(el.link))throw Error('Popraw nieprawidłowy link w elemencie „'+String(el.text||'').slice(0,50)+'”.');
+    }
     await document.fonts.ready;
     await Promise.all([...document.querySelectorAll('.artwork-sheet')].map(image=>image.decode()));
-    return baseMakePdf();
+    const bytes=await baseMakePdf();
+    const doc=await PDFLib.PDFDocument.load(bytes);
+    for(let i=0;i<state.screens.length;i++){
+      const source=state.screens[i],art=source.artwork;
+      if(!art)continue;
+      const page=doc.getPage(i),sx=page.getWidth()/art.width,sy=page.getHeight()/art.height;
+      for(const element of art.elements){
+        const url=safeLink(element.link);if(!url)continue;
+        const rect=linkRect(element,elementHeight(element));
+        const left=Math.max(0,rect.x),top=Math.max(0,rect.y),right=Math.min(art.width,rect.x+rect.width),bottom=Math.min(art.height,rect.y+rect.height);
+        if(right<=left||bottom<=top)continue;
+        const annotation=doc.context.obj({Type:'Annot',Subtype:'Link',Rect:[left*sx,page.getHeight()-bottom*sy,right*sx,page.getHeight()-top*sy],Border:[0,0,0],A:{Type:'Action',S:'URI',URI:PDFLib.PDFString.of(url)}});
+        page.node.addAnnot(doc.context.register(annotation));
+      }
+    }
+    return doc.save();
   };
-  window.PdfArtwork={pageHtml,svgFor,importFile};
+  window.PdfArtwork={pageHtml,svgFor,importFile,linesFor,elementHeight};
   render();
 })();

@@ -68,16 +68,16 @@ async function useTemplate(page,slug='sm'){
 }
 for(const slug of ['sm','onko'])test(slug+' Illustrator template preserves two pages, editable text and embedded design',privateOnly,async t=>{
   const page=await editor(t);await useTemplate(page,slug);
-  const data=await page.evaluate(()=>({count:state.screens.reduce((n,p)=>n+p.artwork.elements.length,0),fonts:Object.keys(state.artworkFonts).length,first:state.screens[0].artwork.elements[0].text,svg:PdfArtwork.svgFor(state.screens[0])}));
+  const data=await page.evaluate(()=>({count:state.screens.reduce((n,p)=>n+p.artwork.elements.length,0),fonts:Object.keys(state.artworkFonts).length,first:state.screens[0].artwork.elements.find(e=>e.text.startsWith('Pacjent kontaktuje')).text,svg:PdfArtwork.svgFor(state.screens[0])}));
   const styles=await page.evaluate(()=>{
     const fields=state.screens[0].artwork.elements;
-    return {ratings:fields.filter(e=>['9,5','9,6','86%'].includes(e.text)).map(e=>e.font),
-      bold:fields.find(e=>e.text.startsWith('W tym miejscu')).font,
-      normal:fields.find(e=>e.text.startsWith('Ten sam kontakt')).font};
+    return {captions:fields.filter(e=>['PACJENT','KOORDYNATOR/PIELĘGNIARKA','LEKARZ PROWADZĄCY'].includes(e.text)),
+      paragraph:fields.find(e=>e.text.startsWith('Pacjent kontaktuje'))};
   });
-  assert.equal(styles.ratings.length,3);assert.equal(new Set(styles.ratings).size,1);
-  assert.notEqual(styles.bold,styles.normal);
-  assert.ok(data.count>140);assert.ok(data.fonts>=8);assert.match(data.first,/Pacjent kontaktuje/);assert.match(data.svg,/@font-face/);assert.match(data.svg,/textLength=/);
+  assert.equal(styles.captions.length,3);
+  assert.ok(styles.captions.every(e=>e.letterSpacing>1&&e.originalLines.length===1));
+  assert.ok(styles.paragraph.originalLines.length>=4);
+  assert.ok(data.count>60);assert.ok(data.fonts>=8);assert.match(data.first,/Pacjent kontaktuje/);assert.match(data.svg,/@font-face/);assert.match(data.svg,/x="[\d. -]+"/);
   await mkdir(path.join(root,'artifacts'),{recursive:true});
   await page.setViewportSize({width:1450,height:1500});
   await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}.artwork-hit{outline:0!important}'});
@@ -175,4 +175,53 @@ test('synthetic fixed layout supports editing, independent template copies and e
     const expected=JSON.stringify(state),bytes=await makeEditablePdf();state=initialState();render();
     return await openProjectPdfBytes(bytes.slice().buffer)&&JSON.stringify(state)===expected;
   });assert.equal(result,true);
+});
+
+test('paragraph block editing, tracking and whole-button links survive PDF export and Undo/Redo',async t=>{
+ const page=await editor(t);
+ await page.evaluate(()=>{
+   const lines=[{id:'a',kind:'text',text:'First line of a paragraph',x:30,y:60,width:220,fontSize:14,color:'#1d1e3c',font:'',fit:true},{id:'b',kind:'text',text:'and its second line.',x:30,y:82,width:220,fontSize:14,color:'#1d1e3c',font:'',fit:true}];
+   const elements=ArtworkLayout.groupElements(lines);
+   elements.push({id:'caps',kind:'text',text:'EXAMPLE LABEL',x:30,y:150,width:250,fontSize:10,letterSpacing:2,color:'#1d1e3c',fit:false});
+   state={...initialState(),w:400,h:600,format:'custom',screens:[{id:'test',type:'artwork',title:'Test',blocks:[],artwork:{version:2,width:400,height:600,background:'',elements}}],selected:'test',artworkFonts:{}};render();
+ });
+ await page.locator('#artworkSelect').selectOption('a');
+ assert.equal(await page.locator('#artworkText').inputValue(),'First line of a paragraph and its second line.');
+ const before=await snapshot(page);
+ await page.locator('#artworkText').fill('A whole paragraph can be edited here and will wrap within its own text box.');
+ assert.ok(await page.evaluate(()=>PdfArtwork.linesFor(state.screens[0].artwork.elements[0]).length>=2));
+ await shortcut(page,'Control+z');assert.equal(await snapshot(page),before);
+ await shortcut(page,'Control+y');
+ await page.locator('#artworkSelect').selectOption('caps');
+ assert.equal(await page.locator('[data-artwork-key="letterSpacing"]').inputValue(),'2');
+ assert.match(await page.evaluate(()=>PdfArtwork.svgFor(state.screens[0])),/letter-spacing="2"/);
+ await page.locator('#artworkAddLink').click();
+ await page.locator('[data-artwork-key="x"]').fill('30');await page.locator('[data-artwork-key="y"]').fill('480');
+ await page.locator('[data-artwork-key="width"]').fill('300');await page.locator('[data-artwork-key="height"]').fill('40');
+ await page.locator('#artworkLink').fill('https://example.com/learn');
+ assert.equal(await page.locator('#artworkLinkNote a').getAttribute('href'),'https://example.com/learn');
+ const linked=await snapshot(page);
+ await shortcut(page,'Control+z');assert.notEqual(await snapshot(page),linked);
+ await shortcut(page,'Control+y');assert.equal(await snapshot(page),linked);
+ const annotation=await page.evaluate(async()=>{
+   const bytes=await makeEditablePdf(),doc=await PDFLib.PDFDocument.load(bytes),p=doc.getPage(0);
+   const ref=p.node.Annots().get(0),a=doc.context.lookup(ref);
+   const action=doc.context.lookup(a.get(PDFLib.PDFName.of('A')));
+   const result={type:a.get(PDFLib.PDFName.of('Subtype')).toString(),uri:action.get(PDFLib.PDFName.of('URI')).decodeText(),rect:a.get(PDFLib.PDFName.of('Rect')).asArray().map(n=>n.asNumber()),width:p.getWidth(),height:p.getHeight()};
+   state=initialState();render();await openProjectPdfBytes(bytes.slice().buffer);
+   result.restored=state.screens[0].artwork.elements.find(e=>e.kind==='link').link;return result;
+ });
+ assert.equal(annotation.type,'/Link');assert.equal(annotation.uri,'https://example.com/learn');assert.equal(annotation.restored,annotation.uri);
+ assert.deepEqual(annotation.rect,[30*annotation.width/400,80*annotation.height/600,330*annotation.width/400,120*annotation.height/600]);
+ await page.setViewportSize({width:1450,height:1500});
+ await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}'});
+ await mkdir(path.join(root,'artifacts'),{recursive:true});
+ await page.locator('.artwork-page').screenshot({path:path.join(root,'artifacts','artwork-blocks-tracking-links.png')});
+});
+test('unsafe artwork links cannot navigate or enter the exported PDF',async t=>{
+ const page=await editor(t);
+ await page.evaluate(()=>{state={...initialState(),screens:[{id:'test',type:'artwork',blocks:[],artwork:{version:2,width:400,height:600,elements:[{id:'link',kind:'link',text:'Test button',x:20,y:40,width:180,height:30,link:'javascript:alert(1)'}]}}],selected:'test'};render();});
+ assert.equal(await page.locator('#artworkLinkNote a').count(),0);
+ const message=await page.evaluate(async()=>{try{await makeEditablePdf();return '';}catch(error){return error.message;}});
+ assert.match(message,/nieprawidłowy link/);
 });
