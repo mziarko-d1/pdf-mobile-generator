@@ -265,7 +265,7 @@
       function format(patch){
         const {start,end}=selection();if(end<=start)return;
         checkpoint();
-        if(Object.hasOwn(patch,'bold')){rememberSourceStyles(el);el.layoutEdited=true;el.fit=false;$('artworkFit').checked=false;}
+        if(typeof patch.bold==='boolean'){rememberSourceStyles(el);el.layoutEdited=true;el.fit=false;$('artworkFit').checked=false;}
         el.textStyles=applyStyle(el.text,el.textStyles,start,end,patch);
         // If source text cannot be aligned, use the paragraph renderer for exact selection offsets.
         if(originalLayout(el)&&!originalOffsets(el)){rememberSourceStyles(el);el.layoutEdited=true;el.fit=false;}

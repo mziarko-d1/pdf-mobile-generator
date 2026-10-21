@@ -360,4 +360,7 @@ test('coloring tracked original text keeps glyph coordinates and selection bound
  await page.locator('#artworkSelectionColor').fill('#ff0000');await page.locator('#artworkApplyColor').click();
  const result=await page.evaluate(()=>{const svg=new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml');return {x:svg.querySelector('text > tspan').getAttribute('x'),colored:[...svg.querySelectorAll('tspan[fill="#ff0000"]')].map(n=>n.textContent).join('')};});
  assert.equal(result.x,x);assert.equal(result.colored,'LABEL');
+ await page.locator('#artworkClearFormat').click();
+ assert.equal(await page.evaluate(()=>new DOMParser().parseFromString(PdfArtwork.svgFor(state.screens[0]),'image/svg+xml').querySelector('text > tspan').getAttribute('x')),x);
+ assert.deepEqual(await page.evaluate(()=>state.screens[0].artwork.elements[0].textStyles),[]);
 });
