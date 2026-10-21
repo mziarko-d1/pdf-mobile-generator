@@ -216,7 +216,9 @@ test('paragraph block editing, tracking and whole-button links survive PDF expor
  await page.setViewportSize({width:1450,height:1500});
  await page.addStyleTag({content:'.workspace{height:auto!important;overflow:visible!important}.workspace-top{position:static!important}'});
  await mkdir(path.join(root,'artifacts'),{recursive:true});
- await page.locator('.artwork-page').screenshot({path:path.join(root,'artifacts','artwork-blocks-tracking-links.png')});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ await page.waitForFunction(()=>[...document.querySelectorAll('.artwork-sheet')].every(image=>image.complete));
+ await page.screenshot({clip:await page.locator('.artwork-page').boundingBox(),path:path.join(root,'artifacts','artwork-blocks-tracking-links.png')});
 });
 test('unsafe artwork links cannot navigate or enter the exported PDF',async t=>{
  const page=await editor(t);
